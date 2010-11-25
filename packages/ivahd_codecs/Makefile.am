@@ -3,4 +3,5 @@
 pkg_includedir = $(includedir)/dce
 
 nobase_pkg_include_HEADERS = \
+	ti/sdo/codecs/mpeg4dec/impeg4vdec.h \
 	ti/sdo/codecs/h264dec/ih264vdec.h
