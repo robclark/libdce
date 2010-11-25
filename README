@@ -1,0 +1,26 @@
+WHAT IT IS
+----------
+
+A library to remotely invoke the hw accellerated codecs on IVA-HD via a
+syslink/rcm shim layer.
+
+And an interesting project to try on my free time.
+
+HOW TO BUILD
+------------
+
+Standard autotools build for cortex-a9 side.  The shim layer (dce.c) is
+built for both cortex-a9 side (client) and ducati side (server).  The rest
+of the bootup code and codec binaries are for now in an internal git tree
+(linked as a submodule) until standalone codec libraries are made
+available.
+
+The corresponding ducati appm3 image is found in the firmware directory.
+This replaces the official base_image_app_m3.xem3.
+
+TODO
+----
+
+Migrate to newer syslink with RcmServer thread pool, to allow for using
+more than one codec instance at a time. 
+
