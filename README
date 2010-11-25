@@ -15,8 +15,14 @@ of the bootup code and codec binaries are for now in an internal git tree
 (linked as a submodule) until standalone codec libraries are made
 available.
 
-The corresponding ducati appm3 image is found in the firmware directory.
-This replaces the official base_image_app_m3.xem3.
+The corresponding ducati appm3 image (dce_app_m3.xem3) is found in the
+firmware directory.  The Notify_MPUSYS_reroute_Test_Core0.xem3 from syslink
+build should be used for sysm3 image.  The dce_app_m3.xem3 replaces the
+official base_image_app_m3.xem3.
+
+Note that for now the checked in dce_app_m3.xem3 only contains h264 and
+mpeg4 decoders.  The other codecs are still only available with a proper
+SLA in place.  Contact your TI representative.
 
 TODO
 ----

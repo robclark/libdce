@@ -31,38 +31,47 @@
  */
 
 
-#ifndef __IMPEG4VDEC_H__
-#define __IMPEG4VDEC_H__
+#ifndef __IVC1VDEC_H__
+#define __IVC1VDEC_H__
 
-#include <ti/xdais/ialg.h>
+#include <ti/xdais/xdas.h>
 #include <ti/xdais/dm/ividdec3.h>
 
-typedef struct IMPEG4VDEC_Status {
-  IVIDDEC3_Status viddec3Status;
-} IMPEG4VDEC_Status;
+typedef struct IVC1VDEC_Status {
+  IVIDDEC3_Status viddecStatus;
+  XDAS_Int32 eRes;
+  XDAS_UInt32 extendedErrorCode0;
+  XDAS_UInt32 extendedErrorCode1;
+  XDAS_UInt32 extendedErrorCode2;
+  XDAS_UInt32 extendedErrorCode3;
+} IVC1VDEC_Status;
 
-typedef struct IMPEG4VDEC_Params {
-  IVIDDEC3_Params viddec3Params;
-  XDAS_Int32 outloopDeBlocking;
+typedef struct IVC1VDEC_Params {
+  IVIDDEC3_Params viddecParams;
   XDAS_Int32 ErrorConcealmentON;
-  XDAS_Int32 sorensonSparkStream;
-} IMPEG4VDEC_Params;
+  XDAS_Int32 FrameLayerDataPresentFlag;
+} IVC1VDEC_Params;
 
-typedef struct IMPEG4VDEC_DynamicParams {
-  IVIDDEC3_DynamicParams viddec3DynamicParams;
-} IMPEG4VDEC_DynamicParams;
+typedef struct IVC1VDEC_DynamicParams {
+  IVIDDEC3_DynamicParams viddecDynamicParams;
+  XDAS_Int32 outloopDeblocking;
+  XDAS_Int32 reserved;
+} IVC1VDEC_DynamicParams;
 
-typedef struct IMPEG4VDEC_InArgs {
-  IVIDDEC3_InArgs viddec3InArgs;
-} IMPEG4VDEC_InArgs;
+typedef struct IVC1VDEC_InArgs {
+  IVIDDEC3_InArgs viddecInArgs;
+}IVC1VDEC_InArgs;
 
-typedef struct IMPEG4VDEC_OutArgs {
-  IVIDDEC3_OutArgs viddec3OutArgs;
-  XDAS_Int32 vopTimeIncrementResolution;
-  XDAS_Int32 vopTimeIncrement;
-  XDAS_Int32 mp4ClosedGov;
-  XDAS_Int32 mp4BrokenLink;
-} IMPEG4VDEC_OutArgs;
+typedef struct IVC1VDEC_OutArgs {
+  IVIDDEC3_OutArgs viddecOutArgs;
+  XDAS_Int32 *mv_table_ptr;
+  XDAS_UInt8 pixelRange;
+  XDAS_UInt16 parWidth;
+  XDAS_UInt16 parHeight;
+  XDAS_UInt16 numErrMbs;
+#ifndef NO_RCV_HEADER_PARSING
+  XDAS_UInt32 frameSize;
+#endif
+} IVC1VDEC_OutArgs;
 
-#endif /*__IMPEG4VDEC_H__ */
-
+#endif  /* __IVC1VDEC_H__ */
