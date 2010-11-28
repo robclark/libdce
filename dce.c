@@ -46,6 +46,7 @@
 #ifdef SERVER
 #  include <xdc/std.h>
 #  include <xdc/runtime/System.h>
+#  include <ti/sysbios/knl/Task.h>
 #  include <ti/ipc/MultiProc.h>
 #  include <ti/sdo/rcm/RcmServer.h>
 #  define Rcm_Handle         RcmServer_Handle
@@ -73,6 +74,8 @@ typedef UInt32 Uns;  /* WTF? */
 #  include <MultiProc.h>
 #  include <RcmClient.h>
 #  include <IpcUsr.h>
+#  include <sys/types.h>
+#  include <unistd.h>
 #  include <stdint.h>
 #  include <memmgr.h>
 #  include <tilermem.h>
@@ -196,11 +199,103 @@ static void dce_clean(void *ptr)
 #endif
 
 /*
+ * Tracking of memmgr's.. one per client process, so that codec's memory
+ * allocates are tracked per client, and memory is freed if client crashes
+ * or exits badly
+ */
+
+#ifdef SERVER
+
+#include <ti/sdo/rcm/RcmClient.h>
+#include <ti/omap/mem/MemMgr.h>
+
+static struct {
+    Int pid;
+    Int refs;
+    RcmClient_Handle handle;
+} clients[10] = {0}; /* adjust size per max-clients .. */
+
+static void dce_register_pid(Int pid)
+{
+    int i, idx = -1;
+
+    // TODO register/unregister should have critical section..
+
+    for (i = 0; i < DIM(clients); i++) {
+        if (clients[i].pid == pid) {
+            DEBUG("found mem client: refs=%d", clients[i].refs);
+            clients[i].refs++;
+            return;
+        } else if (! clients[i].refs) {
+            idx = i;
+        }
+    }
+
+    if (idx > 0) {
+        int err;
+        char name[20];
+        RcmClient_Params params = {0};
+
+        snprintf (name, DIM(name), "memsrv-%08x", pid);
+
+        DEBUG("creating mem client: %d (%s)", idx, name);
+
+        RcmClient_init();
+        RcmClient_Params_init(&params);
+
+        params.heapId = 1; // XXX 1==appm3, but would be nice not to hard-code
+
+        err = RcmClient_create(name, &params, &clients[idx].handle);
+        if (err < 0) {
+            ERROR("fail: %08x", err);
+            return;
+        }
+
+        err = MemMgr_RegisterRCMClient(pid, clients[idx].handle);
+        if (err < 0) {
+            ERROR("fail: %08x", err);
+            return;
+        }
+
+        clients[idx].refs = 1;
+        return;
+    }
+
+    ERROR("could not register client");
+}
+
+static void dce_unregister_pid(Int pid)
+{
+    int i;
+
+    for (i = 0; i < DIM(clients); i++) {
+        if (clients[i].pid == pid) {
+            DEBUG("found mem client: refs=%d", clients[i].refs);
+            clients[i].refs--;
+
+            if (! clients[i].refs) {
+                DEBUG("deleting mem client: %d", i);
+                RcmClient_delete(&clients[i].handle);
+            }
+
+            return;
+        }
+    }
+
+    ERROR("did not find mem client: %d", pid);
+}
+
+#else
+static Int pid;
+#endif
+
+/*
  * Engine_open:
  */
 
 typedef union {
     struct {
+        Int    pid;
         Char   name[25];
         /* attrs not supported/needed yet */
     } in;
@@ -216,7 +311,10 @@ static Int32 rpc_Engine_open(UInt32 size, UInt32 *data)
     Engine_open__args *args = (Engine_open__args *)data;
     Engine_Error ec;
 
+    dce_register_pid(args->in.pid);
+
     DEBUG(">> name=%s", args->in.name);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     args->out.engine = (Uint32)Engine_open(args->in.name, NULL, &ec);
     args->out.ec = ec;
     DEBUG("<< engine=%08x, ec=%d", args->out.engine, args->out.ec);
@@ -242,6 +340,7 @@ Engine_Handle Engine_open(String name, Engine_Attrs *attrs, Engine_Error *ec)
 
     msg->fxnIdx = idx_Engine_open;
     args = (Engine_open__args *)&(msg->data);
+    args->in.pid = pid;
     strncpy(args->in.name, name, DIM(args->in.name)-1);
 
     err = RcmClient_exec(handle, msg, &msg);
@@ -274,6 +373,7 @@ out:
 
 typedef union {
     struct {
+        Int    pid;
         Uint32 engine;
     } in;
 } Engine_close__args;
@@ -284,8 +384,11 @@ static Int32 rpc_Engine_close(UInt32 size, UInt32 *data)
     Engine_close__args *args = (Engine_close__args *)data;
 
     DEBUG(">> engine=%08x", args->in.engine);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     Engine_close((Engine_Handle)(args->in.engine));
     DEBUG("<<");
+
+    dce_unregister_pid(args->in.pid);
 
     return 0;
 }
@@ -307,6 +410,7 @@ Void Engine_close(Engine_Handle engine)
 
     msg->fxnIdx = idx_Engine_close;
     args = (Engine_close__args *)&(msg->data);
+    args->in.pid    = pid;
     args->in.engine = (Uint32)engine;
 
     err = RcmClient_exec(handle, msg, &msg);
@@ -330,6 +434,7 @@ out:
 
 typedef union {
     struct {
+        Int    pid;
         Uint32 engine;
         Char   name[25];
         Uint32 params;
@@ -346,6 +451,7 @@ static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
     VIDDEC3_Params *params = (VIDDEC3_Params *)args->in.params;
 
     DEBUG(">> engine=%08x, name=%s, params=%p", args->in.engine, args->in.name, params);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     args->out.codec = (Uint32)
             VIDDEC3_create((Engine_Handle)args->in.engine, args->in.name, params);
     dce_clean (params);
@@ -373,6 +479,7 @@ VIDDEC3_Handle VIDDEC3_create(Engine_Handle engine, String name,
 
     msg->fxnIdx = idx_VIDDEC3_create;
     args = (VIDDEC3_create__args *)&(msg->data);
+    args->in.pid    = pid;
     args->in.engine = (Uint32)engine;
     strncpy(args->in.name, name, DIM(args->in.name)-1);
     args->in.params = virt2ducati(params);
@@ -403,6 +510,7 @@ out:
 
 typedef union {
     struct {
+        Int             pid;
         Uint32          codec;
         VIDDEC3_Cmd     id;
         Uint32          dynParams;
@@ -423,6 +531,7 @@ static Int32 rpc_VIDDEC3_control(UInt32 size, UInt32 *data)
 
     DEBUG(">> codec=%p, id=%d, dynParams=%p, status=%p",
             args->in.codec, args->in.id, dynParams, status);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     args->out.ret = (Uint32)VIDDEC3_control(
             (VIDDEC3_Handle)args->in.codec, args->in.id, dynParams, status);
     dce_clean (dynParams);
@@ -452,6 +561,7 @@ XDAS_Int32 VIDDEC3_control(VIDDEC3_Handle codec, VIDDEC3_Cmd id,
 
     msg->fxnIdx = idx_VIDDEC3_control;
     args = (VIDDEC3_control__args *)&(msg->data);
+    args->in.pid        = pid;
     args->in.codec      = (Uint32)codec;
     args->in.id         = id;
     args->in.dynParams  = virt2ducati(dynParams);
@@ -483,6 +593,7 @@ out:
 
 typedef union {
     struct {
+        Int        pid;
         Uint32     codec;
         Uint32     inBufs;
         Uint32     outBufs;
@@ -505,6 +616,7 @@ static Int32 rpc_VIDDEC3_process(UInt32 size, UInt32 *data)
 
     DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p",
             args->in.codec, inBufs, outBufs, inArgs, outArgs);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     args->out.ret = (Uint32)VIDDEC3_process(
             (VIDDEC3_Handle)args->in.codec, inBufs, outBufs, inArgs, outArgs);
     dce_clean (inBufs);
@@ -537,6 +649,7 @@ XDAS_Int32 VIDDEC3_process(VIDDEC3_Handle codec,
 
     msg->fxnIdx = idx_VIDDEC3_process;
     args = (VIDDEC3_process__args *)&(msg->data);
+    args->in.pid     = pid;
     args->in.codec   = (Uint32)codec;
     args->in.inBufs  = virt2ducati(inBufs);
     args->in.outBufs = virt2ducati(outBufs);
@@ -569,6 +682,7 @@ out:
 
 typedef union {
     struct {
+        Int    pid;
         Uint32 codec;
     } in;
 } VIDDEC3_delete__args;
@@ -579,6 +693,7 @@ static Int32 rpc_VIDDEC3_delete(UInt32 size, UInt32 *data)
     VIDDEC3_delete__args *args = (VIDDEC3_delete__args *)data;
 
     DEBUG(">> codec=%08x", args->in.codec);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
     VIDDEC3_delete((VIDDEC3_Handle)(args->in.codec));
     DEBUG("<<");
 
@@ -602,6 +717,7 @@ Void VIDDEC3_delete(VIDDEC3_Handle codec)
 
     msg->fxnIdx = idx_VIDDEC3_delete;
     args = (VIDDEC3_delete__args *)&(msg->data);
+    args->in.pid   = pid;
     args->in.codec = (Uint32)codec;
 
     err = RcmClient_exec(handle, msg, &msg);
@@ -628,17 +744,21 @@ int dce_init(void)
     int err = 0;
     Rcm_Params params = {0};
 
-#ifndef SERVER
-    Ipc_Config config = {0};
-
-    Ipc_getConfig(&config);
-    err = Ipc_setup(&config);
+#ifdef SERVER
+    RcmServer_ThreadPoolDesc pool = {
+            .name = "General Pool",
+            .count = 3,
+            .priority = Thread_Priority_NORMAL,
+    };
 #endif
 
     Rcm_init();
     Rcm_Params_init(&params);
 
-#ifndef SERVER
+#ifdef SERVER
+    params.workerPools.length = 1;
+    params.workerPools.elem = &pool;
+#else
     params.heapId = 1; //XXX do I need this?
 #endif
 
@@ -687,9 +807,29 @@ int dce_deinit(void)
 }
 
 #ifndef SERVER
+
+int memsrv_init (char *name);
+int memsrv_deinit (void);
+
+/* TODO: don't do this on library load.. do it on Engine_open()/Engine_close().. */
 static void __attribute__((constructor)) init(void)
 {
-    int err = dce_init();
+    int err;
+    Ipc_Config config = {0};
+    char name[20];
+
+    Ipc_getConfig(&config);
+
+    err = Ipc_setup(&config);
+    DEBUG("Ipc_setup() -> %08x", err);
+
+    pid = getpid();
+    snprintf (name, DIM(name), "memsrv-%08x", pid);
+
+    err = memsrv_init(name);
+    DEBUG("memsrv_init() -> %08x", err);
+
+    err = dce_init();
     DEBUG("dce_init() -> %08x", err);
 }
 
@@ -697,5 +837,8 @@ static void __attribute__((destructor)) deinit(void)
 {
     int err = dce_deinit();
     DEBUG("dce_deinit() -> %08x", err);
+
+    err = memsrv_deinit();
+    DEBUG("memsrv_deinit() -> %08x", err);
 }
 #endif
