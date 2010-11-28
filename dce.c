@@ -104,14 +104,16 @@ typedef UInt32 Uns;  /* WTF? */
 #  define DIM(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
 
-#define ERROR(FMT,...)  do { \
+#ifdef DEBUG
+#  define TRACE(FMT,...)  do { \
         System_printf("%s:%d:\t%s\terror: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
         System_flush(); \
     } while (0)
-#define DEBUG(FMT,...)  do { \
-        System_printf("%s:%d:\t%s\tdebug: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
-        System_flush(); \
-    } while (0)
+#else
+#  define TRACE(FMT,...) do { } while (0)
+#endif
+#define ERROR(FMT,...)   TRACE("error: " FMT, ##__VA_ARGS__)
+#define DEBUG(FMT,...)   TRACE("debug: " FMT, ##__VA_ARGS__)
 
 
 static Rcm_Handle handle = NULL;
