@@ -77,6 +77,7 @@ typedef UInt32 Uns;  /* WTF? */
 #  include <sys/types.h>
 #  include <unistd.h>
 #  include <stdint.h>
+#  include <pthread.h>
 #  include <memmgr.h>
 #  include <tilermem.h>
 #  define Rcm_Handle         RcmClient_Handle
@@ -95,6 +96,8 @@ typedef UInt32 Uns;  /* WTF? */
     } while (0)
 #  define System_printf      printf
 #  define System_flush()     do { } while (0)
+static void init(void);
+static void deinit(void);
 #endif
 
 #include <ti/sdo/ce/Engine.h>
@@ -332,6 +335,8 @@ Engine_Handle Engine_open(String name, Engine_Attrs *attrs, Engine_Error *ec)
     Engine_open__args *args;
     RcmClient_Message *msg = NULL;
 
+    init();
+
     DEBUG(">> name=%s, attrs=%p", name, attrs);
 
     err = RcmClient_alloc(handle, sizeof(Engine_open__args), &msg);
@@ -427,6 +432,8 @@ out:
     if (msg) {
         RcmClient_free (handle, msg);
     }
+
+    deinit();
 }
 #endif
 
@@ -809,16 +816,26 @@ int dce_deinit(void)
 }
 
 #ifndef SERVER
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static int count = 0;
 
 int memsrv_init (char *name);
 int memsrv_deinit (void);
 
 /* TODO: don't do this on library load.. do it on Engine_open()/Engine_close().. */
-static void __attribute__((constructor)) init(void)
+static void init(void)
 {
     int err;
     Ipc_Config config = {0};
     char name[20];
+
+    pthread_mutex_lock(&mutex);
+
+    if (count > 0) {
+        goto out;
+    }
+
+    count++;
 
     Ipc_getConfig(&config);
 
@@ -833,14 +850,30 @@ static void __attribute__((constructor)) init(void)
 
     err = dce_init();
     DEBUG("dce_init() -> %08x", err);
+
+out:
+    pthread_mutex_unlock(&mutex);
 }
 
-static void __attribute__((destructor)) deinit(void)
+static void deinit(void)
 {
-    int err = dce_deinit();
+    int err;
+
+    pthread_mutex_lock(&mutex);
+
+    count--;
+
+    if (count > 0) {
+        goto out;
+    }
+
+    err = dce_deinit();
     DEBUG("dce_deinit() -> %08x", err);
 
     err = memsrv_deinit();
     DEBUG("memsrv_deinit() -> %08x", err);
+
+out:
+    pthread_mutex_unlock(&mutex);
 }
 #endif
