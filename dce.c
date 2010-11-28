@@ -109,7 +109,7 @@ static void deinit(void);
 
 #ifdef DEBUG
 #  define TRACE(FMT,...)  do { \
-        System_printf("%s:%d:\t%s\terror: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
+        System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
         System_flush(); \
     } while (0)
 #else
