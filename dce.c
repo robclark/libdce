@@ -30,10 +30,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Note: this is currently a pretty simplistic implementation.. no attempt
- * is made at tracking clients or resource cleanup if the client crashes
- * unexpectedly.  That can be added easily enough later.
- */
+// XXX TODO split up into several src files..
 
 #ifndef CLIENT
 #  define SERVER 1
@@ -49,6 +46,7 @@
 #  include <ti/sysbios/knl/Task.h>
 #  include <ti/ipc/MultiProc.h>
 #  include <ti/sdo/rcm/RcmServer.h>
+#  include <ti/omap/slpm/slpm_interface.h>
 #  define Rcm_Handle         RcmServer_Handle
 #  define Rcm_Params         RcmServer_Params
 #  define Rcm_init           RcmServer_init
@@ -214,80 +212,161 @@ static void dce_clean(void *ptr)
 #include <ti/sdo/rcm/RcmClient.h>
 #include <ti/omap/mem/MemMgr.h>
 
-static struct {
-    Int pid;
+typedef struct {
+    Int pid;                      /* value of zero means unused */
     Int refs;
     RcmClient_Handle handle;
-} clients[10] = {0}; /* adjust size per max-clients .. */
+    Engine_Handle    engines[10]; /* adjust size per max engines per client */
+    VIDDEC3_Handle   codecs[10];  /* adjust size per max codecs per client */
+} Client;
+static Client clients[10] = {0};  /* adjust size per max-clients .. */
 
-static void dce_register_pid(Int pid)
+static inline Client * get_client(Int pid)
 {
-    int i, idx = -1;
+    int i;
+    for (i = 0; i < DIM(clients); i++) {
+        if (clients[i].pid == pid) {
+            return &clients[i];
+        }
+    }
+    return NULL;
+}
+
+static void dce_register_engine(Int pid, Engine_Handle engine)
+{
+    Client *c;
 
     // TODO register/unregister should have critical section..
 
-    for (i = 0; i < DIM(clients); i++) {
-        if (clients[i].pid == pid) {
-            DEBUG("found mem client: refs=%d", clients[i].refs);
-            clients[i].refs++;
-            return;
-        } else if (! clients[i].refs) {
-            idx = i;
+    c = get_client(pid);
+    if (c) {
+        int i;
+        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        c->refs++;
+        for (i = 0; i < DIM(c->engines); i++) {
+            if (c->engines[i] == NULL) {
+                c->engines[i] = engine;
+                DEBUG("registered engine: pid=%d engine=%p", pid, engine);
+                break;
+            }
         }
-    }
-
-    if (idx > 0) {
+    } else {
         int err;
         char name[20];
         RcmClient_Params params = {0};
 
-        snprintf (name, DIM(name), "memsrv-%08x", pid);
+        c = get_client(0);
+        if (!c) {
+            ERROR("too many clients");
+            goto out;
+        }
 
-        DEBUG("creating mem client: %d (%s)", idx, name);
+        snprintf (name, DIM(name), "memsrv-%08x", pid);
+        DEBUG("creating mem client: %p (%s)", c, name);
 
         RcmClient_init();
         RcmClient_Params_init(&params);
 
         params.heapId = 1; // XXX 1==appm3, but would be nice not to hard-code
 
-        err = RcmClient_create(name, &params, &clients[idx].handle);
+        err = RcmClient_create(name, &params, &c->handle);
         if (err < 0) {
             ERROR("fail: %08x", err);
             return;
         }
 
-        err = MemMgr_RegisterRCMClient(pid, clients[idx].handle);
+        err = MemMgr_RegisterRCMClient(pid, c->handle);
         if (err < 0) {
             ERROR("fail: %08x", err);
             return;
         }
 
-        clients[idx].refs = 1;
-        return;
+        c->pid = pid;
+        c->refs = 1;
+        c->engines[0] = engine;
     }
-
-    ERROR("could not register client");
+out:
+    // end critical section..
+    return;
 }
 
-static void dce_unregister_pid(Int pid)
+static void dce_unregister_engine(Int pid, Engine_Handle engine)
 {
-    int i;
+    Client *c;
 
-    for (i = 0; i < DIM(clients); i++) {
-        if (clients[i].pid == pid) {
-            DEBUG("found mem client: refs=%d", clients[i].refs);
-            clients[i].refs--;
+    // TODO register/unregister should have critical section..
 
-            if (! clients[i].refs) {
-                DEBUG("deleting mem client: %d", i);
-                RcmClient_delete(&clients[i].handle);
+    c = get_client(pid);
+    if (c) {
+        int i;
+
+        DEBUG("found mem client: %p refs=%d", c, c->refs);
+
+        for (i = 0; i < DIM(c->engines); i++) {
+            if (c->engines[i] == engine) {
+                c->engines[i] = NULL;
+                DEBUG("unregistered engine: pid=%d engine=%p", pid, engine);
+                break;
             }
+        }
+        c->refs--;
 
-            return;
+        if (! c->refs) {
+            DEBUG("deleting mem client: %p", c);
+            RcmClient_delete(&c->handle);
+            c->pid = 0;
         }
     }
 
-    ERROR("did not find mem client: %d", pid);
+    // end critical section..
+}
+
+static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
+{
+    Client *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client(pid);
+    if (c) {
+        int i;
+        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        c->refs++;
+        for (i = 0; i < DIM(c->codecs); i++) {
+            if (c->codecs[i] == NULL) {
+                c->codecs[i] = codec;
+                DEBUG("registering codec: pid=%d codec=%p", pid, codec);
+                break;
+            }
+        }
+    }
+    // end critical section..
+    return;
+}
+
+static void dce_unregister_codec(Int pid, VIDDEC3_Handle codec)
+{
+    Client *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client(pid);
+    if (c) {
+        int i;
+
+        DEBUG("found mem client: %p refs=%d", c, c->refs);
+
+        for (i = 0; i < DIM(c->codecs); i++) {
+            if (c->codecs[i] == codec) {
+                c->codecs[i] = NULL;
+                DEBUG("unregistered pid=%d codec=%p", pid, codec);
+                break;
+            }
+        }
+        c->refs--;
+    }
+
+    // end critical section..
 }
 
 #else
@@ -314,15 +393,18 @@ typedef union {
 static Int32 rpc_Engine_open(UInt32 size, UInt32 *data)
 {
     Engine_open__args *args = (Engine_open__args *)data;
+    Int pid = args->in.pid;
     Engine_Error ec;
-
-    dce_register_pid(args->in.pid);
 
     DEBUG(">> name=%s", args->in.name);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
     args->out.engine = (Uint32)Engine_open(args->in.name, NULL, &ec);
     args->out.ec = ec;
     DEBUG("<< engine=%08x, ec=%d", args->out.engine, args->out.ec);
+
+    if (args->out.engine) {
+        dce_register_engine(pid, (Engine_Handle)(args->out.engine));
+    }
 
     return 0;
 }
@@ -390,12 +472,12 @@ static Int32 rpc_Engine_close(UInt32 size, UInt32 *data)
 {
     Engine_close__args *args = (Engine_close__args *)data;
 
+    dce_unregister_engine(args->in.pid, (Engine_Handle)(args->in.engine));
+
     DEBUG(">> engine=%08x", args->in.engine);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
     Engine_close((Engine_Handle)(args->in.engine));
     DEBUG("<<");
-
-    dce_unregister_pid(args->in.pid);
 
     return 0;
 }
@@ -458,6 +540,7 @@ static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
 {
     VIDDEC3_create__args *args = (VIDDEC3_create__args *)data;
     VIDDEC3_Params *params = (VIDDEC3_Params *)args->in.params;
+    Int pid = args->in.pid;
 
     DEBUG(">> engine=%08x, name=%s, params=%p", args->in.engine, args->in.name, params);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
@@ -465,6 +548,10 @@ static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
             VIDDEC3_create((Engine_Handle)args->in.engine, args->in.name, params);
     dce_clean (params);
     DEBUG("<< codec=%08x", args->out.codec);
+
+    if (args->out.codec) {
+        dce_register_codec(pid, (VIDDEC3_Handle)(args->out.codec));
+    }
 
     return 0;
 }
@@ -701,6 +788,8 @@ static Int32 rpc_VIDDEC3_delete(UInt32 size, UInt32 *data)
 {
     VIDDEC3_delete__args *args = (VIDDEC3_delete__args *)data;
 
+    dce_unregister_codec(args->in.pid, (VIDDEC3_Handle)(args->in.codec));
+
     DEBUG(">> codec=%08x", args->in.codec);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
     VIDDEC3_delete((VIDDEC3_Handle)(args->in.codec));
@@ -745,8 +834,50 @@ out:
 #endif
 
 /*
- * Startup/Shutdown
+ * Startup/Shutdown/Cleanup
  */
+
+#ifdef SERVER
+static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
+{
+    Client *c;
+
+    if (evt != slpm_PROC_OBIT) {
+        return;
+    }
+
+    // TODO should be synchronized, but re-entrant..
+
+    c = get_client(pid);
+    DEBUG("cleanup: pid=%d, c=%p", pid, c);
+
+    if (c) {
+        int i;
+
+        /* delete all codecs first */
+        for (i = 0; i < DIM(c->codecs); i++) {
+            if (c->codecs[i]) {
+                VIDDEC3_delete__args args;
+                DEBUG("automatically deleting codec: %p", c->codecs[i]);
+                args.in.pid = pid;
+                args.in.codec = (Uint32)c->codecs[i];
+                rpc_VIDDEC3_delete(sizeof(args), (Uint32 *)&args);
+            }
+        }
+
+        /* and lastly close all engines */
+        for (i = 0; i < DIM(c->engines); i++) {
+            if (c->engines[i]) {
+                Engine_close__args args;
+                DEBUG("automatically closing engine: %p", c->engines[i]);
+                args.in.pid = pid;
+                args.in.engine = (Uint32)c->engines[i];
+                rpc_Engine_close(sizeof(args), (Uint32 *)&args);
+            }
+        }
+    }
+}
+#endif
 
 int dce_init(void)
 {
@@ -754,6 +885,7 @@ int dce_init(void)
     Rcm_Params params = {0};
 
 #ifdef SERVER
+    Int32 appm3;
     RcmServer_ThreadPoolDesc pool = {
             .name = "General Pool",
             .count = 3,
@@ -787,6 +919,16 @@ int dce_init(void)
 
 #ifdef SERVER
     RcmServer_start(handle);
+
+    err = slpm_request_pm_resource(&appm3, slpm_APPM3, NULL);
+    if (err) {
+        ERROR("could not request appm3");
+    }
+
+    err = slpm_register_callback(&appm3, slpm_PROC_OBIT, 0, dce_cleanup_cb);
+    if (err) {
+        ERROR("could not register resource cleanup callback");
+    }
 #endif
 
     DEBUG(SERVER_NAME " running");
@@ -822,7 +964,6 @@ static int count = 0;
 int memsrv_init (char *name);
 int memsrv_deinit (void);
 
-/* TODO: don't do this on library load.. do it on Engine_open()/Engine_close().. */
 static void init(void)
 {
     int err;
