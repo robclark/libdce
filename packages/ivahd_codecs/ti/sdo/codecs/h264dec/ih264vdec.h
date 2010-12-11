@@ -39,16 +39,27 @@
 
 typedef struct IH264VDEC_Status {
   IVIDDEC3_Status viddec3Status;
+  XDAS_Int32 reserved[6];
 } IH264VDEC_Status;
 
 typedef struct IH264VDEC_Params {
   IVIDDEC3_Params viddec3Params;
-  XDAS_UInt32 maxNumRefFrames;
+  XDAS_Int32 maxNumRefFrames;
   XDAS_Int32 pConstantMemory;
+  XDAS_Int32 bitStreamFormat;
+  XDAS_UInt32 errConcealmentMode;
+  XDAS_Int32 temporalDirModePred;
+  XDAS_Int32 reserved_1[4];
+  XDAS_Int32 presetLevelIdc;
+  XDAS_Int32 presetProfileIdc;
+  XDAS_Int32 reserved_2;
+
 } IH264VDEC_Params;
 
 typedef struct IH264VDEC_DynamicParams {
   IVIDDEC3_DynamicParams viddec3DynamicParams;
+  XDAS_Int32 deblockFilterMode;
+  XDAS_Int32 reserved[6];
 } IH264VDEC_DynamicParams;
 
 typedef struct IH264VDEC_InArgs {
@@ -60,7 +71,8 @@ typedef struct IH264VDEC_OutArgs {
 } IH264VDEC_OutArgs;
 
 typedef enum {
-  IH264VDEC_NUM_REFFRAMES_AUTO = 0,
+  IH264VDEC_NUM_REFFRAMES_AUTO = -1,
+  IH264VDEC_NUM_REFFRAMES_0 = 0,
   IH264VDEC_NUM_REFFRAMES_1 = 1,
   IH264VDEC_NUM_REFFRAMES_2 = 2,
   IH264VDEC_NUM_REFFRAMES_3 = 3,
@@ -79,6 +91,31 @@ typedef enum {
   IH264VDEC_NUM_REFFRAMES_16 = 16,
   IH264VDEC_NUM_REFFRAMES_DEFAULT = IH264VDEC_NUM_REFFRAMES_AUTO
 } IH264VDEC_numRefFrames;
+
+typedef enum {
+  IH264VDEC_NO_CONCEALMENT = 0,
+  IH264VDEC_APPLY_CONCEALMENT
+} IH264VDEC_errConcealmentMode;
+
+typedef enum {
+  IH264VDEC_LEVEL1 = 0,
+  IH264VDEC_LEVEL1B,
+  IH264VDEC_LEVEL11,
+  IH264VDEC_LEVEL12,
+  IH264VDEC_LEVEL13,
+  IH264VDEC_LEVEL2,
+  IH264VDEC_LEVEL21,
+  IH264VDEC_LEVEL22,
+  IH264VDEC_LEVEL3,
+  IH264VDEC_LEVEL31,
+  IH264VDEC_LEVEL32,
+  IH264VDEC_LEVEL4,
+  IH264VDEC_LEVEL41,
+  IH264VDEC_LEVEL42,
+  IH264VDEC_LEVEL5,
+  IH264VDEC_MAXLEVELID = IH264VDEC_LEVEL5
+} IH264VDEC_LevelId;
+
 
 #endif /* __IH264VDEC_H__ */
 

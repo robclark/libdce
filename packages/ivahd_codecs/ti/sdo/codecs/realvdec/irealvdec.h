@@ -39,12 +39,18 @@
 
 typedef struct IrealVDEC_Status {
   IVIDDEC3_Status viddecStatus;
+  XDAS_UInt32 extendedErrorCode0;
+  XDAS_UInt32 extendedErrorCode1;
+  XDAS_UInt32 extendedErrorCode2;
+  XDAS_UInt32 extendedErrorCode3;
+  XDAS_UInt32 reserved[4];
 } IrealVDEC_Status;
 
 typedef struct IrealVDEC_Params {
   IVIDDEC3_Params viddecParams;
   XDAS_Int32 codec_version;
   XDAS_Int32 stream_type;
+  XDAS_UInt32 reserved[2];
 } IrealVDEC_Params;
 
 typedef struct IrealVDEC_DynamicParams {
