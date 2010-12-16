@@ -53,6 +53,10 @@
 #define DEBUG(FMT,...)  printf("%s:%d:\t%s\tdebug: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__)
 #define MIN(a,b)        (((a) < (b)) ? (a) : (b))
 
+/* align x to next highest multiple of 2^n */
+#define ALIGN2(x,n)   (((x) + ((1 << (n)) - 1)) & ~((1 << (n)) - 1))
+
+
 /*
  * A very simple VIDDEC3 client which will decode h264 frames (one per file),
  * and write out raw (unstrided) nv12 frames (one per file).
@@ -276,7 +280,9 @@ int main(int argc, char **argv)
     DEBUG ("width=%d, height=%d", width, height);
 
     /* calculate output buffer parameters: */
-    padded_width  = (width + (2*PADX) + 127) & 0xFFFFFF80;
+    width  = ALIGN2 (width, 4);        /* round up to MB */
+    height = ALIGN2 (height, 4);       /* round up to MB */
+    padded_width  = ALIGN2 (width + (2*PADX), 7);
     padded_height = height + 4*PADY;
     num_buffers   = MIN(16, 32768 / ((width/16) * (height/16))) + 3;
 
@@ -293,8 +299,8 @@ int main(int argc, char **argv)
     params = dce_alloc(sizeof(IH264VDEC_Params));
     params->size = sizeof(IH264VDEC_Params);
 
-    params->maxWidth         = (width + 15) & ~0xf;   /* round up to MB */
-    params->maxHeight        = (height + 15) & ~0xf;  /* round up to MB */
+    params->maxWidth         = width;
+    params->maxHeight        = height;
     params->maxFrameRate     = 30000;
     params->maxBitRate       = 10000000;
     params->dataEndianness   = XDM_BYTE;
@@ -313,6 +319,8 @@ int main(int argc, char **argv)
     /* these shouldn't matter: */
     ((IH264VDEC_Params *)params)->maxNumRefFrames = IH264VDEC_NUM_REFFRAMES_AUTO;
     ((IH264VDEC_Params *)params)->pConstantMemory = NULL;
+    ((IH264VDEC_Params *)params)->presetLevelIdc = IH264VDEC_LEVEL41;
+    ((IH264VDEC_Params *)params)->errConcealmentMode = IH264VDEC_APPLY_CONCEALMENT;
 
     codec = VIDDEC3_create(engine, "ivahd_h264dec", params);
 
