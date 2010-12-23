@@ -105,7 +105,7 @@ static void deinit(void);
 #  define DIM(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
 
-#ifdef DEBUG
+#ifdef ENABLE_DEBUG
 #  define TRACE(FMT,...)  do { \
         System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
         System_flush(); \
@@ -1013,6 +1013,9 @@ static void deinit(void)
 
     err = memsrv_deinit();
     DEBUG("memsrv_deinit() -> %08x", err);
+
+    err = Ipc_destroy();
+    DEBUG("Ipc_destroy() -> %08x", err);
 
 out:
     pthread_mutex_unlock(&mutex);
