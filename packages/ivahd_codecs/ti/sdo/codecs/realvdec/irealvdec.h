@@ -51,6 +51,7 @@ typedef struct IrealVDEC_Params {
   XDAS_Int32 codec_version;
   XDAS_Int32 stream_type;
   XDAS_UInt32 reserved[2];
+  XDAS_UInt32 errorConcealmentEnable;
 } IrealVDEC_Params;
 
 typedef struct IrealVDEC_DynamicParams {
@@ -60,6 +61,7 @@ typedef struct IrealVDEC_DynamicParams {
 typedef struct IrealVDEC_InArgs {
   IVIDDEC3_InArgs viddecInArgs;
   XDAS_Int32 *packSize;
+  XDAS_UInt32 num_packets;
 } IrealVDEC_InArgs;
 
 typedef struct IrealVDEC_OutArgs {
