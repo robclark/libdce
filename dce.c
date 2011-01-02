@@ -105,16 +105,21 @@ static void deinit(void);
 #  define DIM(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
 
-#ifdef ENABLE_DEBUG
-#  define TRACE(FMT,...)  do { \
+/* set desired trace level:
+ *   3 - error
+ *   2 - error, info
+ *   1 - error, info, debug  (very verbose)
+ */
+#define TRACE_LEVEL 2
+
+#define TRACE(lvl, FMT,...)  do if ((lvl) >= TRACE_LEVEL) { \
         System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
         System_flush(); \
     } while (0)
-#else
-#  define TRACE(FMT,...) do { } while (0)
-#endif
-#define ERROR(FMT,...)   TRACE("error: " FMT, ##__VA_ARGS__)
-#define DEBUG(FMT,...)   TRACE("debug: " FMT, ##__VA_ARGS__)
+
+#define ERROR(FMT,...)   TRACE(3, "error: " FMT, ##__VA_ARGS__)
+#define INFO(FMT,...)    TRACE(2, "info: " FMT, ##__VA_ARGS__)
+#define DEBUG(FMT,...)   TRACE(1, "debug: " FMT, ##__VA_ARGS__)
 
 
 static Rcm_Handle handle = NULL;
@@ -241,12 +246,12 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
     c = get_client(pid);
     if (c) {
         int i;
-        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        INFO("found mem client: %p refs=%d", c, c->refs);
         c->refs++;
         for (i = 0; i < DIM(c->engines); i++) {
             if (c->engines[i] == NULL) {
                 c->engines[i] = engine;
-                DEBUG("registered engine: pid=%d engine=%p", pid, engine);
+                INFO("registered engine: pid=%d engine=%p", pid, engine);
                 break;
             }
         }
@@ -262,7 +267,7 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
         }
 
         snprintf (name, DIM(name), "memsrv-%08x", pid);
-        DEBUG("creating mem client: %p (%s)", c, name);
+        INFO("creating mem client: %p (%s)", c, name);
 
         RcmClient_init();
         RcmClient_Params_init(&params);
@@ -300,19 +305,19 @@ static void dce_unregister_engine(Int pid, Engine_Handle engine)
     if (c) {
         int i;
 
-        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        INFO("found mem client: %p refs=%d", c, c->refs);
 
         for (i = 0; i < DIM(c->engines); i++) {
             if (c->engines[i] == engine) {
                 c->engines[i] = NULL;
-                DEBUG("unregistered engine: pid=%d engine=%p", pid, engine);
+                INFO("unregistered engine: pid=%d engine=%p", pid, engine);
                 break;
             }
         }
         c->refs--;
 
         if (! c->refs) {
-            DEBUG("deleting mem client: %p", c);
+            INFO("deleting mem client: %p", c);
             RcmClient_delete(&c->handle);
             c->pid = 0;
         }
@@ -330,12 +335,12 @@ static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
     c = get_client(pid);
     if (c) {
         int i;
-        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        INFO("found mem client: %p refs=%d", c, c->refs);
         c->refs++;
         for (i = 0; i < DIM(c->codecs); i++) {
             if (c->codecs[i] == NULL) {
                 c->codecs[i] = codec;
-                DEBUG("registering codec: pid=%d codec=%p", pid, codec);
+                INFO("registering codec: pid=%d codec=%p", pid, codec);
                 break;
             }
         }
@@ -354,12 +359,12 @@ static void dce_unregister_codec(Int pid, VIDDEC3_Handle codec)
     if (c) {
         int i;
 
-        DEBUG("found mem client: %p refs=%d", c, c->refs);
+        INFO("found mem client: %p refs=%d", c, c->refs);
 
         for (i = 0; i < DIM(c->codecs); i++) {
             if (c->codecs[i] == codec) {
                 c->codecs[i] = NULL;
-                DEBUG("unregistered pid=%d codec=%p", pid, codec);
+                INFO("unregistered pid=%d codec=%p", pid, codec);
                 break;
             }
         }
@@ -849,7 +854,7 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
     // TODO should be synchronized, but re-entrant..
 
     c = get_client(pid);
-    DEBUG("cleanup: pid=%d, c=%p", pid, c);
+    INFO("cleanup: pid=%d, c=%p", pid, c);
 
     if (c) {
         int i;
@@ -858,7 +863,7 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
         for (i = 0; i < DIM(c->codecs); i++) {
             if (c->codecs[i]) {
                 VIDDEC3_delete__args args;
-                DEBUG("automatically deleting codec: %p", c->codecs[i]);
+                INFO("automatically deleting codec: %p", c->codecs[i]);
                 args.in.pid = pid;
                 args.in.codec = (Uint32)c->codecs[i];
                 rpc_VIDDEC3_delete(sizeof(args), (Uint32 *)&args);
@@ -869,7 +874,7 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
         for (i = 0; i < DIM(c->engines); i++) {
             if (c->engines[i]) {
                 Engine_close__args args;
-                DEBUG("automatically closing engine: %p", c->engines[i]);
+                INFO("automatically closing engine: %p", c->engines[i]);
                 args.in.pid = pid;
                 args.in.engine = (Uint32)c->engines[i];
                 rpc_Engine_close(sizeof(args), (Uint32 *)&args);
