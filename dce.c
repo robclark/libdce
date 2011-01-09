@@ -32,9 +32,7 @@
 
 // XXX TODO split up into several src files..
 
-#ifndef CLIENT
-#  define SERVER 1
-#endif
+#include "dce_priv.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -92,35 +90,12 @@ typedef UInt32 Uns;  /* WTF? */
             return _e;                                                         \
         }                                                                      \
     } while (0)
-#  define System_printf      printf
-#  define System_flush()     do { } while (0)
 static void init(void);
 static void deinit(void);
 #endif
 
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
-
-#ifndef   DIM
-#  define DIM(a) (sizeof((a)) / sizeof((a)[0]))
-#endif
-
-/* set desired trace level:
- *   3 - error
- *   2 - error, info
- *   1 - error, info, debug  (very verbose)
- */
-#define TRACE_LEVEL 2
-
-#define TRACE(lvl, FMT,...)  do if ((lvl) >= TRACE_LEVEL) { \
-        System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
-        System_flush(); \
-    } while (0)
-
-#define ERROR(FMT,...)   TRACE(3, "error: " FMT, ##__VA_ARGS__)
-#define INFO(FMT,...)    TRACE(2, "info: " FMT, ##__VA_ARGS__)
-#define DEBUG(FMT,...)   TRACE(1, "debug: " FMT, ##__VA_ARGS__)
-
 
 static Rcm_Handle handle = NULL;
 
@@ -718,8 +693,10 @@ static Int32 rpc_VIDDEC3_process(UInt32 size, UInt32 *data)
     DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p",
             args->in.codec, inBufs, outBufs, inArgs, outArgs);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
+    ivahd_acquire();
     args->out.ret = (Uint32)VIDDEC3_process(
             (VIDDEC3_Handle)args->in.codec, inBufs, outBufs, inArgs, outArgs);
+    ivahd_release();
     dce_clean (inBufs);
     dce_clean (outBufs);
     dce_clean (inArgs);
