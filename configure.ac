@@ -50,10 +50,7 @@ dnl Check for syslink
 PKG_CHECK_MODULES([SYSLINK], [syslink])
 
 dnl Check for tiler memmgr
-PKG_CHECK_MODULES([MEMMGR], [libmemmgr])
-
-dnl Check for d2cmap
-PKG_CHECK_MODULES([D2CMAP], [libd2cmap])
+PKG_CHECK_MODULES([MEMMGR], [libtimemmgr])
 
 dnl *** checks for header files ***
 dnl check if we have ANSI C header files

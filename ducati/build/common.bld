@@ -1,0 +1,282 @@
+/*
+ *  Copyright 2009 by Texas Instruments Incorporated.
+ *
+ *  All rights reserved. Property of Texas Instruments Incorporated.
+ *  Restricted rights to use, duplicate or disclose this code are
+ *  granted through contract.
+ *
+ */
+
+/*
+ *  ======== common.bld ========
+ *
+ */
+
+
+/* 
+ *  ======== getCores ========
+ *  Determines which cores to build for.
+ *
+ *  Any argument in XDCARGS which does not contain core= is treated
+ *  as a core name. This way build for multiple cores can be specified by
+ *  separating them with a space. 
+ */
+function getCores(xdcArgs)
+{
+    var coreNames = new Array();
+    
+    /* Check for any XDCARGS with core=; these are the corenames */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/core=/)) {
+            coreNames.push(xdcArgs[i].substr(5));
+        }
+    }
+
+    return coreNames;
+}
+
+
+/* 
+ *  ======== getProfiles ========
+ *  Determines which profiles to build for.
+ *
+ *  Any argument in XDCARGS which does not contain platform= is treated
+ *  as a profile. This way multiple build profiles can be specified by
+ *  separating them with a space. 
+ */
+function getProfiles(xdcArgs)
+{
+    var profiles = new Array();
+    
+    /* Check for any XDCARGS with profile=; these are profiles. */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/profile=/)) {
+            profiles.push(xdcArgs[i].substr(8));
+        }
+    }
+
+    return profiles;
+}
+
+function getBuildModes(xdcArgs)
+{
+    var buildModes = new Array();
+    
+    /* Check for any XDCARGS with buildMode=; these are specific 
+       build configuration */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/buildMode=/)) {
+            buildModes.push(xdcArgs[i].substr(10));
+        }
+    }
+    return buildModes;
+}
+
+
+/*
+ *  ======== getTraceType ========
+ *  Determines which trace type to build for.
+ *
+ *  Any argument in XDCARGS which does not contain trace_type= is treated
+ *  as a trace type name. This way build for different trace type can be specified by
+ *  separating them with a space. 
+ * XDCARGS="profile=debug core=app_m3 target_build=BUILD_OMAP4 trace_type=UIA_SW_ON"
+ */
+function getTraceType(xdcArgs)
+{
+    var trace_type = new Array();
+    
+    /* Check for any XDCARGS with trace_type=; these are the corenames */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/trace_type=/)) {
+            trace_type.push(xdcArgs[i].substr(11));
+        }
+    }
+
+    return trace_type;
+}
+
+
+/*
+ *  ======== getTraceMode ========
+ *  Determines which trace mode to use.
+ * 
+ */
+function getTraceMode(xdcArgs)
+{
+    var trace = new Array();
+    
+    /* Check for any XDCARGS with profile=; these are profiles. */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/trace=/)) {
+            trace.push(xdcArgs[i].substr(6));
+        }
+    }
+
+    return trace;
+}
+
+// Possible options - none Virtio
+// ISS_SIMULATOR
+// VIRTIO
+// ...
+function getTargetEnvironment(xdcArgs)
+{
+    var target_env = new Array();
+    
+    /* Check for any XDCARGS with profile=; these are profiles. */
+    for (var i = 0; i < xdcArgs.length; i++) {
+        if (xdcArgs[i].match(/target_env=/)) {
+            target_env.push(xdcArgs[i].substr(11));
+        }
+    }
+    return target_env;
+}
+
+function buildOptions(xdcArgs, aCompileOpts, coreName)
+{
+    var buildMode = new Array();
+
+    var buildMode = getBuildModes(xdcArgs);
+
+    var compileOpts = " -D_DM270  -D_DM290_IMX_MCFIX_ -DSERVER=1 --gcc"; 
+
+    if (aCompileOpts != null){
+        compileOpts += aCompileOpts;
+    }
+    
+    /*Update compile opt if trace is uart*/
+    var traceMode = getTraceMode(xdcArgs);
+    if(traceMode.length != 0)
+    {
+        if(traceMode[0].match("UART"))
+        {
+            compileOpts += " -DUART_TRACES ";
+        }
+    }
+
+    if(coreName != null) {
+        if(coreName.match(/sys_m3/)){
+            compileOpts += " -DDUCATI_SYS_M3 ";
+        }
+
+        if(coreName.match(/app_m3/)){
+            compileOpts += " -DDUCATI_APP_M3 ";
+        }
+    }
+
+    return compileOpts; 
+}
+
+
+
+/*
+ *  ======== buildLibs ========
+ *  This function generates the makefile goals for the libraries taking 
+ *  into account the profile variants, specific ducati cores and build modes
+ *
+ */
+function buildLibs(objList, trgList, xdcArgs, libCompileOpts, coreName)
+{
+    var compileOpts = buildOptions(xdcArgs, libCompileOpts, coreName);
+    var profiles = getProfiles(xdcArgs);
+    //print ("profile length" + profiles.length +"\t" + "profile0" +  profiles[0] +"\n");
+    /* If no profiles were assigned, build for  whole program debug */
+    if (profiles.length == 0) {
+        profiles[0] = "whole_program_debug";
+    }
+
+    for (var i = 0; i < Build.targets.length; i++) {
+
+        var targ = Build.targets[i];
+
+        for (var j = 0; j < profiles.length; j++) {
+
+            var profile         = profiles[j];
+            var profileOpts     = compileOpts;
+
+            if (profile.match(/release/)) {
+                profileOpts += " -O3";
+            }
+
+            if (coreName == null) {
+                var lib_name = 'lib/' + profile + '/' + Pkg.name ;
+            }
+            else {
+                var lib_name = 'lib/' + coreName + '/' + profile + '/' + Pkg.name ;
+            }
+
+            var lib = Pkg.addLibrary(lib_name, targ, {profile: profile, copts: profileOpts});
+
+            lib.addObjects(objList);
+        }
+    }
+}
+
+/*
+ *  ======== supportsCore ========
+ *  Returns true if coreName is in the supported core list. If coreNameList
+ *  is null or empty, that's taken to mean all targets are supported.
+ */
+function supportsCore(coreName, coreNameList)
+{
+    if ((coreNameList == null) || (coreNameList.length == 0)) {
+        return true;
+    }
+
+    for (var j = 0; j < coreNameList.length; j++) {
+        if(coreName.match(coreNameList[j])){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ *  ======== commonGetLibs ========
+ *  Common getLibs function
+ */
+
+function commonGetLibs(prog, bCoreFlag, pkg, dir)
+{
+    var suffix;
+
+    /* find a compatible suffix */
+    if ("findSuffix" in prog.build.target) {
+        suffix = prog.build.target.findSuffix(pkg);
+    }
+    else {
+        suffix = prog.build.target.suffix;
+    }
+
+    var name = pkg.$name + ".a" + suffix;
+    var lib  = "";
+
+    if (bCoreFlag == true) {
+        lib = "lib/" + prog.global.coreName + "/" + pkg.profile + "/" + name;
+    }
+    else {
+        lib = "lib/" + "/" + pkg.profile + "/" + name;
+    }
+
+    if (java.io.File(dir + lib).exists()) {
+        return lib;
+    }
+    else {
+        print("Default lib not found: " + lib +"\nlooking for release lib");
+        if (bCoreFlag == true) {
+          lib = "lib/" + prog.global.coreName + "/" + "release/" + name;
+        }
+        else {
+          lib = "lib/" + "/" + "release/" + name;
+        } 
+        if (java.io.File(dir + lib).exists()) {
+            return lib;
+        }
+    }
+
+    /* could not find any library, throw exception */
+    throw Error("Library not found: " + lib);
+}
+

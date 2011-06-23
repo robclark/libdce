@@ -39,12 +39,17 @@
 
 typedef struct IH264VDEC_Status {
   IVIDDEC3_Status viddec3Status;
-  XDAS_Int32 reserved[6];
+  XDAS_Int32 reserved[7];
+  XDAS_UInt32 gapInFrameNum;
+  XDAS_UInt32 spsMaxRefFrames;
 } IH264VDEC_Status;
 
 typedef struct IH264VDEC_Params {
   IVIDDEC3_Params viddec3Params;
-  XDAS_Int32 maxNumRefFrames;
+  union {
+	  XDAS_Int32 maxNumRefFrames;
+	  XDAS_Int32 dpbSizeInFrames;      /* new name, same meaning */
+  };
   XDAS_Int32 pConstantMemory;
   XDAS_Int32 bitStreamFormat;
   XDAS_UInt32 errConcealmentMode;
@@ -52,14 +57,15 @@ typedef struct IH264VDEC_Params {
   XDAS_Int32 reserved_1[4];
   XDAS_Int32 presetLevelIdc;
   XDAS_Int32 presetProfileIdc;
-  XDAS_Int32 reserved_2;
-
+  XDAS_UInt32 detectCabacAlignErr;
+  XDAS_UInt32 detectIPCMAlignErr;
+  XDAS_Int32 reserved_2[5];
 } IH264VDEC_Params;
 
 typedef struct IH264VDEC_DynamicParams {
   IVIDDEC3_DynamicParams viddec3DynamicParams;
   XDAS_Int32 deblockFilterMode;
-  XDAS_Int32 reserved[6];
+  XDAS_Int32 reserved[7];
 } IH264VDEC_DynamicParams;
 
 typedef struct IH264VDEC_InArgs {
@@ -70,6 +76,7 @@ typedef struct IH264VDEC_OutArgs {
   IVIDDEC3_OutArgs viddec3OutArgs;
 } IH264VDEC_OutArgs;
 
+/* old name */
 typedef enum {
   IH264VDEC_NUM_REFFRAMES_AUTO = -1,
   IH264VDEC_NUM_REFFRAMES_0 = 0,
@@ -92,10 +99,43 @@ typedef enum {
   IH264VDEC_NUM_REFFRAMES_DEFAULT = IH264VDEC_NUM_REFFRAMES_AUTO
 } IH264VDEC_numRefFrames;
 
+/* new name */
+typedef enum {
+  IH264VDEC_DPB_NUMFRAMES_AUTO = -1,
+  IH264VDEC_DPB_NUMFRAMES_0 = 0,
+  IH264VDEC_DPB_NUMFRAMES_1 = 1,
+  IH264VDEC_DPB_NUMFRAMES_2 = 2,
+  IH264VDEC_DPB_NUMFRAMES_3 = 3,
+  IH264VDEC_DPB_NUMFRAMES_4 = 4,
+  IH264VDEC_DPB_NUMFRAMES_5 = 5,
+  IH264VDEC_DPB_NUMFRAMES_6 = 6,
+  IH264VDEC_DPB_NUMFRAMES_7 = 7,
+  IH264VDEC_DPB_NUMFRAMES_8 = 8,
+  IH264VDEC_DPB_NUMFRAMES_9 = 9,
+  IH264VDEC_DPB_NUMFRAMES_10 = 10,
+  IH264VDEC_DPB_NUMFRAMES_11 = 11,
+  IH264VDEC_DPB_NUMFRAMES_12 = 12,
+  IH264VDEC_DPB_NUMFRAMES_13 = 13,
+  IH264VDEC_DPB_NUMFRAMES_14 = 14,
+  IH264VDEC_DPB_NUMFRAMES_15 = 15,
+  IH264VDEC_DPB_NUMFRAMES_16 = 16,
+  IH264VDEC_DPB_NUMFRAMES_DEFAULT = IH264VDEC_DPB_NUMFRAMES_AUTO
+} IH264VDEC_dpbNumFrames;
+
 typedef enum {
   IH264VDEC_NO_CONCEALMENT = 0,
   IH264VDEC_APPLY_CONCEALMENT
 } IH264VDEC_errConcealmentMode;
+
+typedef enum {
+  IH264VDEC_DISABLE_CABACALIGNERR_DETECTION = 0,
+  IH264VDEC_ENABLE_CABACALIGNERR_DETECTION
+} IH264VDEC_detectCabacAlignErr;
+
+typedef enum {
+  IH264VDEC_DISABLE_IPCMALIGNERR_DETECTION = 0,
+  IH264VDEC_ENABLE_IPCMALIGNERR_DETECTION
+} IH264VDEC_detectIPCMAlignErr;
 
 typedef enum {
   IH264VDEC_LEVEL1 = 0,
@@ -113,7 +153,8 @@ typedef enum {
   IH264VDEC_LEVEL41,
   IH264VDEC_LEVEL42,
   IH264VDEC_LEVEL5,
-  IH264VDEC_MAXLEVELID = IH264VDEC_LEVEL5
+  IH264VDEC_LEVEL51,
+  IH264VDEC_MAXLEVELID = IH264VDEC_LEVEL51
 } IH264VDEC_LevelId;
 
 

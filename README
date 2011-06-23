@@ -1,32 +1,220 @@
-WHAT IT IS
-----------
+= About Distributed Codec Engine =
 
-A library to remotely invoke the hw accellerated codecs on IVA-HD via a
-syslink/rcm shim layer.
+DCE is a library to remotely invoke the hw accellerated codecs on IVA-HD via a syslink/rcm shim layer.  This provides access to the [http://processors.wiki.ti.com/index.php/Category:Codec_Engine Codec Engine] codec interface on the coprocessor (ducati/M3) from the host.
 
-And an interesting project to try on my free time.
+It is similar in purpose to remote codec engine, although at the time RCE was not supported on OMAP4430, and DCE was a simple way to get the same result.  They should be roughly interchangeable from the user's perspective, with the caveat that the DCE user should use <code>dce_alloc()</code> and <code>dce_free()</code> to allocate/free the control structures that are passed by pointer to CE APIs.
 
-HOW TO BUILD
-------------
+DCE is used by:
+* [http://git.mansr.com/?p=omapfbplay omapfbplay]
+* [http://github.com/robclark/gst-ducati gst-ducati]
 
-Standard autotools build for cortex-a9 side.  The shim layer (dce.c) is
-built for both cortex-a9 side (client) and ducati side (server).  The rest
-of the bootup code and codec binaries are for now in an internal git tree
-(linked as a submodule) until standalone codec libraries are made
-available.
+If you are using DCE (for anything that can be revealed publicly) let me know and I'll add a link.
 
-The corresponding ducati appm3 image (dce_app_m3.xem3) is found in the
-firmware directory.  The Notify_MPUSYS_reroute_Test_Core0.xem3 from syslink
-build should be used for sysm3 image.  The dce_app_m3.xem3 replaces the
-official base_image_app_m3.xem3.
+:Note: look in the README file for the latest version of this document, in particular for the required versions of various dependent components and tools, as these can change over time
 
-Note that for now the checked in dce_app_m3.xem3 only contains h264 and
-mpeg4 decoders.  The other codecs are still only available with a proper
-SLA in place.  Contact your TI representative.
+A pre-built ducati appm3 image (''dce_app_m3.xem3'') is found in the firmware directory.  The ''Notify_MPUSYS_reroute_Test_Core0.xem3'' from syslink build should be used for sysm3 image.  The ''dce_app_m3.xem3'' replaces the official OpenMAX ''base_image_app_m3.xem3''.
 
-TODO
-----
 
-Migrate to newer syslink with RcmServer thread pool, to allow for using
-more than one codec instance at a time. 
+= How To Build =
+
+These instructions are assuming you are cross-compiling on a linux machine for ducati/M3 coprocessor side and natively building the linux/A9 host side (although the instructions for cross-compiling the host side are roughly the same).
+
+The following gives an example of how to build.  I don't claim that it is the best or only way.  But these are the versions I am currently using:
+
+* TMS470/ARM Code Generation Tools (CGT) - 4.6.1
+* XDC tools - 3.20.07.86
+* BIOS (the RTOS) - 6.31.03.25
+* Codec Engine (CE) - 3.20.00.16
+* Framework Component (FC) - 3.20.00.22
+* XDAIS - 7.20.00.07
+* HDVICP2 API and HDVICP2_CODECS - 1.00.000
+* bios-syslink - commit-id [https://gitorious.org/bios-syslink/bios-syslink/commit/48e98007e21e311c126f89ff51616bf6d7067b9d 48e98007e21e311c126f89ff51616bf6d7067b9d]
+* libdce
+
+On linux side, the following versions are used:
+
+* kernel ... 2.6.38 linaro kernel plus ???
+** for now I am using: [https://github.com/robclark/kernel-omap4/tree/ti-omap4-drm/ git://github.com/robclark/kernel-omap4.git ti-omap4-drm branch]
+* syslink userspace:  syslink-2.0
+* tiler/memmgr userspace: memmgr_2.0
+
+
+== Building Ducati/M3 Side ==
+
+=== Install TMS470/ARM Compiler ===
+
+Install Code Generation Tools (CGT) from:
+
+* https://www-a.ti.com/downloads/sds_support/CodeGenerationTools.htm
+
+Install to ''$HOME/ducati/ti_cgt_tms470_<version>''
+
+=== Install XDC tools ===
+
+Download XDC tools from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/rtsc
+
+Install to ''$HOME/ducati/xdctools_<version>''
+
+=== Install BIOS ===
+
+Download BIOS (the RTOS) from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/bios/sysbios/index.html
+
+Install to ''$HOME/ducati/bios_<version>''
+
+=== Install Codec Engine ===
+
+Download Codec Engine (CE) from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/ce/
+
+The lite version is fine.  Install to ''$HOME/ducati/codec_engine_<version>''
+
+=== Install Framework Components ===
+
+Download Framework Components (FC) from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/fc
+
+The lite version without fctools is fine.  Install to ''$HOME/ducati/framework_components_<version>''
+
+=== Install XDAIS ===
+
+Download XDAIS from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/sdo_sb/targetcontent/xdais/index.html
+
+Untar to ''$HOME/ducati/xdais_<version>''
+
+=== Install HDVICP2 library codecs ===
+
+Install HDCICP2 plus desired codecs from:
+
+* http://software-dl.ti.com/dsps/dsps_public_sw/codecs/HDVICP2/index_FDS.html
+
+Install to ''$HOME/ducati/'', and then untar each of the .tar files that was installed.
+
+  cd $HOME/ducati
+  for f in ivahd_*.tar; do
+    untar xf $f
+  done
+
+you should end up with:
+
+* ''$HOME/ducati/ivahd_hdvicp20api_01_00_00_19_production''
+* ''$HOME/ducati/ivahd_h264dec_01_00_00_00_production''
+* ''$HOME/ducati/ivahd_mpeg2vdec_01_00_00_00_production''
+* ''$HOME/ducati/ivahd_jpegvdec_01_00_00_00_production''
+
+=== Setup Environment ===
+
+Setup environment variables needed for the build steps:
+
+ export TMS470_C_DIR="$HOME/ducati/ti_cgt_tms470_4_6_1/include;$HOME/ducati/ti_cgt_tms470_4_6_1/lib"
+ export TMS470CGTOOLPATH="$HOME/ducati/ti_cgt_tms470_4_6_1"
+ XDCPATH=""
+ for f in $HOME/ducati/*/packages; do
+   XDCPATH="$XDCPATH$f;"
+ done
+ export XDCPATH
+ export XDCROOT="$HOME/ducati/xdctools_3_20_07_86"
+ export XDCARGS="profile=release"
+
+Note: if you are using different version numbers, the paths would have to be adjusted accordingly.
+
+=== Build Syslink ===
+
+Clone syslink tree in ''$HOME/ducati/bios-syslink''
+
+ cd $HOME/ducati
+ git clone git://gitorious.org/bios-syslink/bios-syslink.git
+ cd bios-syslink/packages
+ git checkout 48e98007e21e311c126f89ff51616bf6d7067b9d
+ 
+ export XDCBUILDCFG="`pwd`/config.bld"
+ $XDCROOT/xdc clean -PR ./ti
+ $XDCROOT/xdc -PR ./ti/sdo ./ti/omap/uart/ ./ti/omap/mem/ ./ti/omap/platform/ ./ti/omap/slpm/ ./ti/omap/deh ./ti/omap/hdmiwa
+ $XDCROOT/xdc -PR ./ti/omap/samples/notify
+
+when the build succeeds, the sysm3 image will be in ''ti/omap/samples/notify/ti_omap_platform_core0/release/Notify_MPUSYS_reroute_Test_Core0.xem3''.
+
+Note: for now, instead of git://git.omapzoom.org/platform/hardware/ti/bios-syslink.git we use the gitorious tree.  There are some kernel patches missing in ubuntu/linaro 2.6.38 kernel (for now) which are needed to use latest official tree.  (Probably the missing patch is [http://review.omapzoom.org/#change,13113 this].)
+
+Note: if you change syslink, you need to rebuild libdce.. when you build syslink you build both the sysm3 image, plus syslink libraries used by the appm3 image.
+
+=== Build DCE ===
+
+Clone libdce tree in ''$HOME/ducati/libdce''
+
+ cd $HOME/ducati
+ git clone git://github.com/robclark/libdce.git
+ cd libdce
+ 
+ export XDCBUILDCFG="`pwd`/ducati/build/config.bld"
+ cd ducati/platform/base_image
+ $XDCROOT/xdc -j4 -PD .
+
+when the build succeeds, the appm3 image will be in ''out/app_m3/release/dce_app_m3.xem3''.
+
+Note, to reduce the size of the images, the debug symbols can be stripped:
+
+ $TMS470CGTOOLPATH/bin/strip470 Notify_MPUSYS_reroute_Test_Core0.xem3 
+ $TMS470CGTOOLPATH/bin/strip470 dce_app_m3.xem3
+
+== Building Linux/A9 side: ==
+
+Standard autotools build for cortex-a9 side userspace components.
+
+* kernel: 2.6.38 linaro kernel
+** .. patches ..
+* tiler: 
+** git://git.omapzoom.org/platform/hardware/ti/tiler.git
+** branch: memmgr_2.0
+* syslink:
+** git://git.omapzoom.org/platform/hardware/ti/syslink.git
+** branch: syslink-2.0
+
+=== Build TILER userspace ===
+
+ git clone git://git.omapzoom.org/platform/hardware/ti/tiler.git
+ cd tiler
+ git checkout origin/memmgr_2.0
+ ./bootstrap.sh
+ ./configure --prefix=/usr
+ make -j4
+ sudo make install
+
+=== Build Syslink userspace ===
+
+Ignore the build instructions in syslink tree if you are building natively.  Too much to read..
+
+ git clone git://git.omapzoom.org/platform/hardware/ti/syslink.git
+ cd syslink/syslink
+ git checkout origin/syslink-2.0
+ ./bootstrap.sh
+ ./configure --prefix=/usr
+ make -j4
+ sudo make install
+
+== Build DCE userspace ==
+
+If building natively, clone libdce tree.  Otherwise if cross-compiling you can use same copy you cloned on your PC when you build ''dce_app_m3.xem3''.
+
+ cd libdce
+ ./autogen --prefix=/usr
+ make -j4
+ sudo make install
+
+= Useful Links =
+
+* http://www.omappedia.org/wiki/Syslink_Project
+* http://www.omappedia.org/wiki/Syslink_3   -  the future..
+
+= TODO =
+
+* update instructions about syslink and TILER version dependencies.. and add instructions for building ducati image.
+* migrate to syslink v3.0
 

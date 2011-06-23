@@ -18,3 +18,9 @@ configure
 .settings
 .dlls
 dcetest
+.executables
+.interfaces
+.libraries*
+*.mak
+*.xem3
+ducati/platform/base_image/package

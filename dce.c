@@ -195,7 +195,6 @@ static void dce_clean(void *ptr)
 typedef struct {
     Int pid;                      /* value of zero means unused */
     Int refs;
-    RcmClient_Handle handle;
     Engine_Handle    engines[10]; /* adjust size per max engines per client */
     VIDDEC3_Handle   codecs[10];  /* adjust size per max codecs per client */
 } Client;
@@ -231,34 +230,10 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
             }
         }
     } else {
-        int err;
-        char name[20];
-        RcmClient_Params params = {0};
-
         c = get_client(0);
         if (!c) {
             ERROR("too many clients");
             goto out;
-        }
-
-        snprintf (name, DIM(name), "memsrv-%08x", pid);
-        INFO("creating mem client: %p (%s)", c, name);
-
-        RcmClient_init();
-        RcmClient_Params_init(&params);
-
-        params.heapId = 1; // XXX 1==appm3, but would be nice not to hard-code
-
-        err = RcmClient_create(name, &params, &c->handle);
-        if (err < 0) {
-            ERROR("fail: %08x", err);
-            return;
-        }
-
-        err = MemMgr_RegisterRCMClient(pid, c->handle);
-        if (err < 0) {
-            ERROR("fail: %08x", err);
-            return;
         }
 
         c->pid = pid;
@@ -292,8 +267,6 @@ static void dce_unregister_engine(Int pid, Engine_Handle engine)
         c->refs--;
 
         if (! c->refs) {
-            INFO("deleting mem client: %p", c);
-            RcmClient_delete(&c->handle);
             c->pid = 0;
         }
     }
@@ -943,14 +916,10 @@ int dce_deinit(void)
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int count = 0;
 
-int memsrv_init (char *name);
-int memsrv_deinit (void);
-
 static void init(void)
 {
     int err;
     Ipc_Config config = {0};
-    char name[20];
 
     pthread_mutex_lock(&mutex);
 
@@ -966,10 +935,6 @@ static void init(void)
     DEBUG("Ipc_setup() -> %08x", err);
 
     pid = getpid();
-    snprintf (name, DIM(name), "memsrv-%08x", pid);
-
-    err = memsrv_init(name);
-    DEBUG("memsrv_init() -> %08x", err);
 
     err = dce_init();
     DEBUG("dce_init() -> %08x", err);
@@ -992,9 +957,6 @@ static void deinit(void)
 
     err = dce_deinit();
     DEBUG("dce_deinit() -> %08x", err);
-
-    err = memsrv_deinit();
-    DEBUG("memsrv_deinit() -> %08x", err);
 
     err = Ipc_destroy();
     DEBUG("Ipc_destroy() -> %08x", err);

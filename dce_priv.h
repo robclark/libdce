@@ -33,8 +33,8 @@
 #ifndef __DCE_PRIV_H__
 #define __DCE_PRIV_H__
 
-#ifndef CLIENT
-#  define SERVER 1
+#if !(defined(CLIENT) || defined(SERVER))
+#  error "Must define either CLIENT or SERVER"
 #endif
 
 int dce_init(void);
