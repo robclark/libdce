@@ -38,12 +38,7 @@
 #include <xdc/runtime/System.h>
 #include <xdc/runtime/Memory.h>
 #include <xdc/runtime/Assert.h>
-//#include <xdc/runtime/Diags.h>
-//#include <xdc/runtime/Log.h>
-//#include <xdc/runtime/Registry.h>
 
-//#include <ti/xdais/xdas.h>
-//#include <ti/xdais/ires_common.h>
 #include <ti/xdais/ires.h>
 
 #include <ti/sdo/fc/ires/iresman.h>
@@ -119,14 +114,21 @@ static IRES_Handle getHandles(IALG_Handle algHandle,
 			(IRES_TILEDMEMORY_ProtocolArgs *)resDesc->protocolArgs;
 	IRES_TILEDMEMORY_Handle handle = NULL;
 	Void *ptr = NULL;
+	int size;
 
 	Assert_isTrue(args, NULL);
 	Assert_isTrue(algHandle, NULL);
 
-	ptr = allocRes(args->sizeDim0 * args->sizeDim1);
+	size = args->sizeDim0;
+	if (args->sizeDim1)
+		size *= args->sizeDim1;
+
+	DEBUG("alloc: %dx%d (%d)", args->sizeDim0, args->sizeDim1, size);
+
+	ptr = allocRes(size);
 	if (!ptr) {
-		ERROR("could not allocate buffer: %dx%d",
-				args->sizeDim0, args->sizeDim1);
+		ERROR("could not allocate buffer: %dx%d (%d)",
+				args->sizeDim0, args->sizeDim1, size);
 		goto fail;
 	}
 
@@ -149,7 +151,7 @@ static IRES_Handle getHandles(IALG_Handle algHandle,
 	return (IRES_Handle)handle;
 
 fail:
-	if (ptr)	freeRes(ptr, args->sizeDim0 * args->sizeDim1);
+	if (ptr)	freeRes(ptr, size);
 	if (handle)	freeRes(handle, sizeof(*handle));
 	return NULL;
 }
@@ -163,11 +165,18 @@ static IRES_Status freeHandles(IALG_Handle algHandle,
 			(IRES_TILEDMEMORY_ProtocolArgs *)resDesc->protocolArgs;
 	IRES_TILEDMEMORY_Handle handle =
 			(IRES_TILEDMEMORY_Handle)algResourceHandle;
+	int size;
 
 	Assert_isTrue(args, NULL);
 	Assert_isTrue(handle, NULL);
 
-	freeRes(handle->memoryBaseAddress, args->sizeDim0 * args->sizeDim1);
+	size = args->sizeDim0;
+	if (args->sizeDim1)
+		size *= args->sizeDim1;
+
+	DEBUG("free: %dx%d (%d)", args->sizeDim0, args->sizeDim1, size);
+
+	freeRes(handle->memoryBaseAddress, size);
 	freeRes(handle, sizeof(*handle));
 
 	return IRES_OK;
