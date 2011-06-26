@@ -45,7 +45,6 @@
 #include <xdc/std.h>
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
-#include <ti/sdo/codecs/h264dec/ih264vdec.h>
 
 #include "dce.h"
 
@@ -296,8 +295,8 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    params = dce_alloc(sizeof(IH264VDEC_Params));
-    params->size = sizeof(IH264VDEC_Params);
+    params = dce_alloc(sizeof(IVIDDEC3_Params));
+    params->size = sizeof(IVIDDEC3_Params);
 
     params->maxWidth         = width;
     params->maxHeight        = height;
@@ -316,11 +315,6 @@ int main(int argc, char **argv)
     params->outputDataMode   = IVIDEO_ENTIREFRAME;
     params->numOutputDataUnits = 0;
     params->errorInfoMode    = IVIDEO_ERRORINFO_OFF;
-    /* these shouldn't matter: */
-    ((IH264VDEC_Params *)params)->maxNumRefFrames = IH264VDEC_NUM_REFFRAMES_AUTO;
-    ((IH264VDEC_Params *)params)->pConstantMemory = NULL;
-    ((IH264VDEC_Params *)params)->presetLevelIdc = IH264VDEC_LEVEL41;
-    ((IH264VDEC_Params *)params)->errConcealmentMode = IH264VDEC_APPLY_CONCEALMENT;
 
     codec = VIDDEC3_create(engine, "ivahd_h264dec", params);
 
@@ -329,8 +323,8 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    dynParams = dce_alloc(sizeof(IH264VDEC_DynamicParams));
-    dynParams->size = sizeof(IH264VDEC_DynamicParams);
+    dynParams = dce_alloc(sizeof(IVIDDEC3_DynamicParams));
+    dynParams->size = sizeof(IVIDDEC3_DynamicParams);
 
     dynParams->decodeHeader  = XDM_DECODE_AU;
 
@@ -340,8 +334,8 @@ int main(int argc, char **argv)
     dynParams->newFrameFlag  = XDAS_TRUE;
 
 
-    status = dce_alloc(sizeof(IH264VDEC_Status));
-    status->size = sizeof(IH264VDEC_Status);
+    status = dce_alloc(sizeof(IVIDDEC3_Status));
+    status->size = sizeof(IVIDDEC3_Status);
 
     err = VIDDEC3_control(codec, XDM_SETPARAMS, dynParams, status);
     if (err) {
@@ -377,11 +371,11 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    inArgs = dce_alloc(sizeof(IH264VDEC_InArgs));
-    inArgs->size = sizeof(IH264VDEC_InArgs);
+    inArgs = dce_alloc(sizeof(IVIDDEC3_InArgs));
+    inArgs->size = sizeof(IVIDDEC3_InArgs);
 
-    outArgs = dce_alloc(sizeof(IH264VDEC_OutArgs));
-    outArgs->size = sizeof(IH264VDEC_OutArgs);
+    outArgs = dce_alloc(sizeof(IVIDDEC3_OutArgs));
+    outArgs->size = sizeof(IVIDDEC3_OutArgs);
 
     while (inBufs->numBufs && outBufs->numBufs) {
         OutputBuffer *buf;
