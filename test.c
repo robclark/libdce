@@ -115,14 +115,41 @@ struct OutputBuffer {
 /* list of free buffers, not locked by codec! */
 static OutputBuffer *head = NULL;
 
-int output_allocate(int cnt, int width, int height)
+int output_allocate(XDM2_BufDesc *outBufs, int cnt,
+        int width, int height, int stride)
 {
+    int tw, th;
+
+    outBufs->numBufs = 2;
+
+    if (stride != 4096) {
+        /* non-2d allocation! */
+        int size_y = stride * height;
+        int size_uv = stride * height / 2;
+        tw = size_y + size_uv;
+        th = 0;
+        outBufs->descs[0].memType = XDM_MEMTYPE_TILEDPAGE;
+        outBufs->descs[0].bufSize.bytes = size_y;
+        outBufs->descs[1].memType = XDM_MEMTYPE_TILEDPAGE;
+        outBufs->descs[1].bufSize.bytes = size_uv;
+
+    } else {
+        tw = width;
+        th = height;
+        outBufs->descs[0].memType = XDM_MEMTYPE_TILED8;
+        outBufs->descs[0].bufSize.tileMem.width  = width;
+        outBufs->descs[0].bufSize.tileMem.height = height;
+        outBufs->descs[1].memType = XDM_MEMTYPE_TILED16;
+        outBufs->descs[1].bufSize.tileMem.width  = width; /* UV interleaved width is same a Y */
+        outBufs->descs[1].bufSize.tileMem.height = height / 2;
+    }
+
     while (cnt) {
         OutputBuffer *buf = calloc(sizeof(OutputBuffer), 1);
 
-        buf->buf = tiler_alloc(width, height);
+        buf->buf = tiler_alloc(tw, th);
         buf->y   = TilerMem_VirtToPhys(buf->buf);
-        buf->uv  = TilerMem_VirtToPhys(buf->buf + (height * 4096));
+        buf->uv  = TilerMem_VirtToPhys(buf->buf + (height * stride));
 
         DEBUG("buf=%p, y=%08x, uv=%08x", buf, buf->y, buf->uv);
 
@@ -206,7 +233,7 @@ int read_input(const char *pattern, int cnt, char *input)
 }
 
 /* helper to write one frame of output */
-int write_output(const char *pattern, int cnt, char *y, char *uv)
+int write_output(const char *pattern, int cnt, char *y, char *uv, int stride)
 {
     int sz = 0, n, i;
     const char *path = get_path(pattern, cnt);
@@ -225,7 +252,7 @@ int write_output(const char *pattern, int cnt, char *y, char *uv)
             p   += n;
             len -= n;
         }
-        y += 4096;
+        y += stride;
     }
 
     for (i = 0; i < height/2; i++) {
@@ -236,7 +263,7 @@ int write_output(const char *pattern, int cnt, char *y, char *uv)
             p   += n;
             len -= n;
         }
-        uv += 4096;
+        uv += stride;
     }
 
     close(fd);
@@ -263,6 +290,15 @@ int main(int argc, char **argv)
     char *input = NULL;
     char *in_pattern, *out_pattern;
     int in_cnt = 0, out_cnt = 0;
+    int oned, stride;
+
+    if ((argc >= 2) && !strcmp(argv[1],"-1")) {
+        oned = TRUE;
+        argc--;
+        argv++;
+    } else {
+        oned = FALSE;
+    }
 
     if (argc != 5) {
         printf("usage:   %s width height inpattern outpattern\n", argv[0]);
@@ -285,8 +321,14 @@ int main(int argc, char **argv)
     padded_height = height + 4*PADY;
     num_buffers   = MIN(16, 32768 / ((width/16) * (height/16))) + 3;
 
-    DEBUG ("padded_width=%d, padded_height=%d, num_buffers=%d",
-            padded_width, padded_height, num_buffers);
+    if (oned) {
+        stride = padded_width;
+    } else {
+        stride = 4096;
+    }
+
+    DEBUG ("padded_width=%d, padded_height=%d, stride=%d, num_buffers=%d",
+            padded_width, padded_height, stride, num_buffers);
 
     engine = Engine_open("ivahd_vidsvr", NULL, &ec);
 
@@ -357,15 +399,9 @@ int main(int argc, char **argv)
     inBufs->descs[0].memType = XDM_MEMTYPE_RAW;
 
     outBufs = dce_alloc(sizeof(XDM2_BufDesc));
-    outBufs->numBufs = 2;
-    outBufs->descs[0].memType = XDM_MEMTYPE_TILED8;
-    outBufs->descs[0].bufSize.tileMem.width  = padded_width;
-    outBufs->descs[0].bufSize.tileMem.height = padded_height;
-    outBufs->descs[1].memType = XDM_MEMTYPE_TILED16;
-    outBufs->descs[1].bufSize.tileMem.width  = padded_width; /* UV interleaved width is same a Y */
-    outBufs->descs[1].bufSize.tileMem.height = padded_height / 2;
 
-    err = output_allocate(num_buffers, padded_width, padded_height);
+    err = output_allocate(outBufs, num_buffers,
+            padded_width, padded_height, stride);
     if (err) {
         ERROR("fail: %d", err);
         goto out;
@@ -416,14 +452,14 @@ int main(int argc, char **argv)
         for (i = 0; outArgs->outputID[i]; i++) {
             /* calculate offset to region of interest */
             XDM_Rect *r = &(outArgs->displayBufs.bufDesc[0].activeFrameRegion);
-            int yoff  = (r->topLeft.y * 4096) + r->topLeft.x;
-            int uvoff = (r->topLeft.y * 4096 / 2) + r->topLeft.x;
+            int yoff  = (r->topLeft.y * stride) + r->topLeft.x;
+            int uvoff = (r->topLeft.y * stride / 2) + r->topLeft.x;
 
             /* get the output buffer and write it to file */
             buf = (OutputBuffer *)outArgs->outputID[i];
             DEBUG("pop: %d (%p)", out_cnt, buf);
             write_output(out_pattern, out_cnt++, buf->buf + yoff,
-                    buf->buf + uvoff + 4096 * padded_height);
+                    buf->buf + uvoff + stride * padded_height, stride);
         }
 
         for (i = 0; outArgs->freeBufID[i]; i++) {
