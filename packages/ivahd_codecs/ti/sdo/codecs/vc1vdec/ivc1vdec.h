@@ -44,18 +44,21 @@ typedef struct IVC1VDEC_Status {
   XDAS_UInt32 extendedErrorCode1;
   XDAS_UInt32 extendedErrorCode2;
   XDAS_UInt32 extendedErrorCode3;
+  XDAS_UInt32 reserved[4];
 } IVC1VDEC_Status;
 
 typedef struct IVC1VDEC_Params {
   IVIDDEC3_Params viddecParams;
   XDAS_Int32 ErrorConcealmentON;
-  XDAS_Int32 FrameLayerDataPresentFlag;
+  union {
+    XDAS_Int32 frameLayerDataPresentFlag;
+    XDAS_Int32 FrameLayerDataPresentFlag;
+  };
+  XDAS_Int32 reserved[2];
 } IVC1VDEC_Params;
 
 typedef struct IVC1VDEC_DynamicParams {
   IVIDDEC3_DynamicParams viddecDynamicParams;
-  XDAS_Int32 outloopDeblocking;
-  XDAS_Int32 reserved;
 } IVC1VDEC_DynamicParams;
 
 typedef struct IVC1VDEC_InArgs {
@@ -64,14 +67,6 @@ typedef struct IVC1VDEC_InArgs {
 
 typedef struct IVC1VDEC_OutArgs {
   IVIDDEC3_OutArgs viddecOutArgs;
-  XDAS_Int32 *mv_table_ptr;
-  XDAS_UInt8 pixelRange;
-  XDAS_UInt16 parWidth;
-  XDAS_UInt16 parHeight;
-  XDAS_UInt16 numErrMbs;
-#ifndef NO_RCV_HEADER_PARSING
-  XDAS_UInt32 frameSize;
-#endif
 } IVC1VDEC_OutArgs;
 
 #endif  /* __IVC1VDEC_H__ */

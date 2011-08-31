@@ -50,6 +50,7 @@ typedef struct Ivp6VDEC_Params {
   IVIDDEC3_Params viddecParams;
   XDAS_UInt32 ivfFormat;
   XDAS_UInt32 reserved[2];
+  XDAS_UInt32 payloadHeaderPresent;
 } Ivp6VDEC_Params;
 
 typedef struct Ivp6VDEC_DynamicParams {

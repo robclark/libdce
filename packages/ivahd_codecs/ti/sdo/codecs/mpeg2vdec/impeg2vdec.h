@@ -49,7 +49,7 @@ typedef struct IMPEG2VDEC_Status {
 typedef struct IMPEG2VDEC_Params {
   IVIDDEC3_Params viddecParams;
   XDAS_Int32 ErrorConcealmentON;
-  XDAS_UInt32 reserved[2];
+  XDAS_UInt32 reserved[3];
 } IMPEG2VDEC_Params;
 
 typedef struct IMPEG2VDEC_DynamicParams {
