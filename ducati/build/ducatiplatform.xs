@@ -10,21 +10,21 @@ memory[0] = ["MEM_CODE_SYSM3",
         space: "code"
 }];
 
-//3MB memory for appM3 code section in I/D bus cached region
+//4MB memory for appM3 code section in I/D bus cached region
 memory[1] = ["MEM_CODE_APPM3",
 {
         name: "MEM_CODE_APPM3",
         base: 0x00100000,
-        len:  0x00300000,
+        len:  0x00400000,
         space: "code"
 }];
 
-//12MB memory section for appM3 heap in I/D bus cached region
+//11MB memory section for appM3 heap in I/D bus cached region
 memory[2] = ["MEM_HEAP1_APPM3",
 {
         name: "MEM_HEAP1_APPM3",
-        base: 0x00400000,
-        len:  0x00C00000,
+        base: 0x00500000,
+        len:  0x00B00000,
         space: "data"
 }];
 
@@ -47,25 +47,27 @@ memory[4] = ["MEM_HEAP_SYSM3",
         space: "data"
 }];
 
-//1.5MB memory for appM3 const section in S bus cached region
+//3.5MB memory for appM3 const section in S bus cached region
+//out of 3.5 MB, now 1KB is taken out hence total = 3.44MB.
+//1KB is used for runtime trace control+MMS trace dump+codec Trace
 memory[5] = ["MEM_CONST_APPM3",
 {
         name: "MEM_CONST_APPM3",
         base: 0x80100000,
-        len:  0x00200000,
+        len:  0x0037FC00,
         space: "data"
 }];
 
-//(~29.375MB) memory section for appM3 heap in S bus cached region
+//(~27.375MB) memory section for appM3 heap in S bus cached region
 memory[6] = ["MEM_HEAP2_APPM3",
 {
         name: "MEM_HEAP2_APPM3",
-        base: 0x80300000,
-        len:  0x01CE0000,
+        base: 0x80480000,
+        len:  0x01AE0000,
         space: "data"
 }];
 
-//128KB For Trace Buffer 
+//128KB For Trace Buffer
 memory[7] = ["DUCATI_TRACE_BUFFER",
 {
         name: "DUCATI_TRACE_BUFFER",
@@ -98,6 +100,24 @@ memory[10] = ["L2_ROM",
         base: 0x0,
         len:  0x4000,
         space: "code/data"
+}];
+
+//1KB reserved for ducati trace control from A9+MMS trace dump+codec Trace dump
+memory[11] = ["MEM_TRACE_CTRL_APPM3",
+{
+        name: "MEM_TRACE_CTRL_APPM3",
+        base: 0x8047FC00,
+        len:  0x00000400,
+        space: "data"
+}];
+
+//500KB memory for new appM3 const section in S bus cached region
+memory[12] = ["MEM_CONST_APPM3_1",
+{
+        name: "MEM_CONST_APPM3_1",
+        base: 0x81F60000,
+        len:  0x00080000,
+        space: "data"
 }];
 
 Build.platformTable["ti.platforms.generic:DucatiPlatform"] =
