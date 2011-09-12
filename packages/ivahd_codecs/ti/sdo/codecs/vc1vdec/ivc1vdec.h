@@ -39,7 +39,6 @@
 
 typedef struct IVC1VDEC_Status {
   IVIDDEC3_Status viddecStatus;
-  XDAS_Int32 eRes;
   XDAS_UInt32 extendedErrorCode0;
   XDAS_UInt32 extendedErrorCode1;
   XDAS_UInt32 extendedErrorCode2;
