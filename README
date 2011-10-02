@@ -34,7 +34,7 @@ The following gives an example of how to build.  I don't claim that it is the be
 On linux side, the following versions are used:
 
 * kernel ... 2.6.38 linaro kernel plus ???
-** for now I am using: [https://github.com/robclark/kernel-omap4/tree/ti-omap4-drm/ git://github.com/robclark/kernel-omap4.git ti-omap4-drm branch]
+** for now I am using: [https://github.com/robclark/kernel-omap4/tree/ti-omap4-drm-syslink-v4l2/ git://github.com/robclark/kernel-omap4.git ti-omap4-drm-syslink-v4l2 branch]
 * syslink userspace:  syslink-2.0
 * tiler/memmgr userspace: memmgr_2.0
 
@@ -95,14 +95,14 @@ Install HDCICP2 plus desired codecs from:
 
 * http://software-dl.ti.com/dsps/dsps_public_sw/codecs/HDVICP2/index_FDS.html
 
-Install to ''$HOME/ducati/'', and then untar each of the .tar files that was installed.
+Install to ''$HOME/ducati/'', and then untar each of the .tar files that were installed.
 
   cd $HOME/ducati
   for f in ivahd_*.tar; do
     untar xf $f
   done
 
-you should end up with:
+You should end up with:
 
 * ''$HOME/ducati/ivahd_hdvicp20api_01_00_00_19_production''
 * ''$HOME/ducati/ivahd_h264dec_01_00_00_00_production''
@@ -119,7 +119,7 @@ Setup environment variables needed for the build steps:
  for f in $HOME/ducati/*/packages; do
    XDCPATH="$XDCPATH$f;"
  done
- export XDCPATH
+ export XDCPATH="$XDCPATH$HOME/ducati/bios_6_31_03_25/packages"
  export XDCROOT="$HOME/ducati/xdctools_3_20_07_86"
  export XDCARGS="profile=release"
 
@@ -127,27 +127,47 @@ Note: if you are using different version numbers, the paths would have to be adj
 
 === Build Syslink ===
 
-Clone syslink tree in ''$HOME/ducati/bios-syslink''
+Clone ''syslink'' tree in ''$HOME/ducati/bios-syslink''
 
  cd $HOME/ducati
  git clone git://gitorious.org/bios-syslink/bios-syslink.git
  cd bios-syslink/packages
  git checkout 48e98007e21e311c126f89ff51616bf6d7067b9d
- 
+
+At this point, since we are not building the DSP/c64 image, we can comment out a line in the build.cfg:
+
+ diff --git a/packages/config.bld b/packages/config.bld
+ index 01113a1..17e9862 100644
+ --- a/packages/config.bld
+ +++ b/packages/config.bld
+ @@ -228,6 +228,5 @@ M3.platform = M3.platforms[0];
+  
+  //Uncomment the require targets
+  Build.targets = [
+ -                    C64T,
+                      M3,
+                  ];
+
+Now resume build:
+
  export XDCBUILDCFG="`pwd`/config.bld"
  $XDCROOT/xdc clean -PR ./ti
  $XDCROOT/xdc -PR ./ti/sdo ./ti/omap/uart/ ./ti/omap/mem/ ./ti/omap/platform/ ./ti/omap/slpm/ ./ti/omap/deh ./ti/omap/hdmiwa
  $XDCROOT/xdc -PR ./ti/omap/samples/notify
 
-when the build succeeds, the sysm3 image will be in ''ti/omap/samples/notify/ti_omap_platform_core0/release/Notify_MPUSYS_reroute_Test_Core0.xem3''.
+When the build succeeds, the ''sysm3 image'' will be in: ''ti/omap/samples/notify/ti_omap_platform_core0/release/Notify_MPUSYS_reroute_Test_Core0.xem3''.
 
-Note: for now, instead of git://git.omapzoom.org/platform/hardware/ti/bios-syslink.git we use the gitorious tree.  There are some kernel patches missing in ubuntu/linaro 2.6.38 kernel (for now) which are needed to use latest official tree.  (Probably the missing patch is [http://review.omapzoom.org/#change,13113 this].)
+Note: For now, instead of git://git.omapzoom.org/platform/hardware/ti/bios-syslink.git, we use the gitorious tree.  There are some kernel patches missing in ubuntu/linaro 2.6.38 kernel (for now) which are needed to use the latest official tree.  (Probably the missing patch is [http://review.omapzoom.org/#change,13113 this].)
 
-Note: if you change syslink, you need to rebuild libdce.. when you build syslink you build both the sysm3 image, plus syslink libraries used by the appm3 image.
+Note: If you change ''syslink'', you need to rebuild ''libdce''. When you build syslink you build both the ''sysm3'' image, plus ''syslink'' libraries used by the ''appm3'' image.
 
 === Build DCE ===
 
-Clone libdce tree in ''$HOME/ducati/libdce''
+Add the bios-syslink package into the already set ''XDCPATH'' variable
+
+ export XDCPATH="$XDCPATH;$HOME/ducati/bios-syslink/packages"
+
+Clone ''libdce'' tree in ''$HOME/ducati/libdce''
 
  cd $HOME/ducati
  git clone git://github.com/robclark/libdce.git
@@ -157,9 +177,9 @@ Clone libdce tree in ''$HOME/ducati/libdce''
  cd ducati/platform/base_image
  $XDCROOT/xdc -j4 -PD .
 
-when the build succeeds, the appm3 image will be in ''out/app_m3/release/dce_app_m3.xem3''.
+When the build succeeds, the ''appm3'' image will be in ''out/app_m3/release/dce_app_m3.xem3''.
 
-Note, to reduce the size of the images, the debug symbols can be stripped:
+Note: To reduce the size of the images, the debug symbols can be stripped:
 
  $TMS470CGTOOLPATH/bin/strip470 Notify_MPUSYS_reroute_Test_Core0.xem3 
  $TMS470CGTOOLPATH/bin/strip470 dce_app_m3.xem3
@@ -201,7 +221,7 @@ Ignore the build instructions in syslink tree if you are building natively.  Too
 
 == Build DCE userspace ==
 
-If building natively, clone libdce tree.  Otherwise if cross-compiling you can use same copy you cloned on your PC when you build ''dce_app_m3.xem3''.
+If building natively, clone ''libdce'' tree.  Otherwise, if cross-compiling, you can use the same copy you cloned on your PC when you built ''dce_app_m3.xem3''.
 
  cd libdce
  ./autogen --prefix=/usr
@@ -217,4 +237,3 @@ If building natively, clone libdce tree.  Otherwise if cross-compiling you can u
 
 * update instructions about syslink and TILER version dependencies.. and add instructions for building ducati image.
 * migrate to syslink v3.0
-
