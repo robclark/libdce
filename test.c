@@ -359,7 +359,7 @@ int main(int argc, char **argv)
     params->errorInfoMode    = IVIDEO_ERRORINFO_OFF;
 
     codec = VIDDEC3_create(engine, "ivahd_h264dec", params);
-
+	printf("create----success\n");
     if (!codec) {
         ERROR("fail");
         goto out;
@@ -384,14 +384,14 @@ int main(int argc, char **argv)
         ERROR("fail: %d", err);
         goto out;
     }
-
+printf("control---success:%d\n",err);
     /* not entirely sure why we need to call this here.. just copying omx.. */
     err = VIDDEC3_control(codec, XDM_GETBUFINFO, dynParams, status);
     if (err) {
         ERROR("fail: %d", err);
         goto out;
     }
-
+printf("control----success==22=:%d\n",err);
     inBufs = dce_alloc(sizeof(XDM2_BufDesc));
     inBufs->numBufs = 1;
     input = tiler_alloc(width * height, 0);

@@ -96,6 +96,7 @@ static void deinit(void);
 
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
+#include <ti/sdo/ce/video2/videnc2.h>
 
 static Rcm_Handle handle = NULL;
 
@@ -211,6 +212,27 @@ static inline Client * get_client(Int pid)
     return NULL;
 }
 
+//add by lyc 20110922
+typedef struct {
+    Int pid;                      /* value of zero means unused */
+    Int refs;
+    Engine_Handle    engines[10]; /* adjust size per max engines per client */
+    VIDENC2_Handle   codecs[10];  /* adjust size per max codecs per client */
+} ClientEncoder;
+static ClientEncoder clientsEncoder[10] = {0};  /* adjust size per max-clients .. */
+
+static inline ClientEncoder * get_client_encoder(Int pid)
+{
+    int i;
+    for (i = 0; i < DIM(clientsEncoder); i++) {
+        if (clientsEncoder[i].pid == pid) {
+            return &clientsEncoder[i];
+        }
+    }
+    return NULL;
+}
+
+
 static void dce_register_engine(Int pid, Engine_Handle engine)
 {
     Client *c;
@@ -245,6 +267,41 @@ out:
     return;
 }
 
+//add by lyc 20110922
+static void dce_register_engine_encoder(Int pid, Engine_Handle engine)
+{
+    ClientEncoder *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client_encoder(pid);
+    if (c) {
+        int i;
+        INFO("found mem client: %p refs=%d", c, c->refs);
+        c->refs++;
+        for (i = 0; i < DIM(c->engines); i++) {
+            if (c->engines[i] == NULL) {
+                c->engines[i] = engine;
+                INFO("registered engine: pid=%d engine=%p", pid, engine);
+                break;
+            }
+        }
+    } else {
+        c = get_client_encoder(0);
+        if (!c) {
+            ERROR("too many clients");
+            goto out;
+        }
+
+        c->pid = pid;
+        c->refs = 1;
+        c->engines[0] = engine;
+    }
+out:
+    // end critical section..
+    return;
+}
+
 static void dce_unregister_engine(Int pid, Engine_Handle engine)
 {
     Client *c;
@@ -252,6 +309,36 @@ static void dce_unregister_engine(Int pid, Engine_Handle engine)
     // TODO register/unregister should have critical section..
 
     c = get_client(pid);
+    if (c) {
+        int i;
+
+        INFO("found mem client: %p refs=%d", c, c->refs);
+
+        for (i = 0; i < DIM(c->engines); i++) {
+            if (c->engines[i] == engine) {
+                c->engines[i] = NULL;
+                INFO("unregistered engine: pid=%d engine=%p", pid, engine);
+                break;
+            }
+        }
+        c->refs--;
+
+        if (! c->refs) {
+            c->pid = 0;
+        }
+    }
+
+    // end critical section..
+}
+
+//add by lyc 20110922
+static void dce_unregister_engine_encoder(Int pid, Engine_Handle engine)
+{
+    ClientEncoder *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client_encoder(pid);
     if (c) {
         int i;
 
@@ -297,7 +384,57 @@ static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
     return;
 }
 
+//add by lyc 20110902
+static void dce_register_codec_encoder(Int pid, VIDENC2_Handle codec)
+{
+    Client *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client(pid);
+    if (c) {
+        int i;
+        INFO("found mem client: %p refs=%d", c, c->refs);
+        c->refs++;
+        for (i = 0; i < DIM(c->codecs); i++) {
+            if (c->codecs[i] == NULL) {
+                c->codecs[i] = codec;
+                INFO("registering codec: pid=%d codec=%p", pid, codec);
+                break;
+            }
+        }
+    }
+    // end critical section..
+    return;
+}
+
 static void dce_unregister_codec(Int pid, VIDDEC3_Handle codec)
+{
+    Client *c;
+
+    // TODO register/unregister should have critical section..
+
+    c = get_client(pid);
+    if (c) {
+        int i;
+
+        INFO("found mem client: %p refs=%d", c, c->refs);
+
+        for (i = 0; i < DIM(c->codecs); i++) {
+            if (c->codecs[i] == codec) {
+                c->codecs[i] = NULL;
+                INFO("unregistered pid=%d codec=%p", pid, codec);
+                break;
+            }
+        }
+        c->refs--;
+    }
+
+    // end critical section..
+}
+
+//add by lyc 20110922
+static void dce_unregister_codec_encoder(Int pid, VIDENC2_Handle codec)
 {
     Client *c;
 
@@ -357,6 +494,7 @@ static Int32 rpc_Engine_open(UInt32 size, UInt32 *data)
 
     if (args->out.engine) {
         dce_register_engine(pid, (Engine_Handle)(args->out.engine));
+        dce_register_engine_encoder(pid, (Engine_Handle)(args->out.engine));
     }
 
     return 0;
@@ -426,6 +564,8 @@ static Int32 rpc_Engine_close(UInt32 size, UInt32 *data)
     Engine_close__args *args = (Engine_close__args *)data;
 
     dce_unregister_engine(args->in.pid, (Engine_Handle)(args->in.engine));
+    dce_unregister_engine_encoder(args->in.pid, (Engine_Handle)(args->in.engine));
+
 
     DEBUG(">> engine=%08x", args->in.engine);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
@@ -488,6 +628,19 @@ typedef union {
     } out;
 } VIDDEC3_create__args;
 
+//add by lyc 20110922
+typedef union {
+    struct {
+        Int    pid;
+        Uint32 engine;
+        Char   name[25];
+        Uint32 params;
+    } in;
+    struct {
+        Uint32 codec;
+    } out;
+} VIDENC2_create__args;
+
 #ifdef SERVER
 static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
 {
@@ -504,6 +657,27 @@ static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
 
     if (args->out.codec) {
         dce_register_codec(pid, (VIDDEC3_Handle)(args->out.codec));
+    }
+
+    return 0;
+}
+
+//add by lyc20110922
+static Int32 rpc_VIDENC2_create(UInt32 size, UInt32 *data)
+{
+	VIDENC2_create__args *args = (VIDENC2_create__args *)data;
+	VIDENC2_Params *params = (VIDENC2_Params *)args->in.params;
+    Int pid = args->in.pid;
+
+    DEBUG(">> engine=%08x, name=%s, params=%p", args->in.engine, args->in.name, params);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
+    args->out.codec = (Uint32)
+		VIDENC2_create((Engine_Handle)args->in.engine, args->in.name, params);
+    dce_clean (params);
+    DEBUG("<< codec=%08x", args->out.codec);
+
+    if (args->out.codec) {
+        dce_register_codec_encoder(pid, (VIDENC2_Handle)(args->out.codec));
     }
 
     return 0;
@@ -551,6 +725,50 @@ out:
 
     return ret;
 }
+
+//add by lyc 20110922
+static UInt32 idx_VIDENC2_create;
+VIDENC2_Handle VIDENC2_create(Engine_Handle engine, String name,
+		VIDENC2_Params *params)
+{
+    int err;
+    VIDENC2_Handle ret;
+    VIDENC2_create__args *args;
+    RcmClient_Message *msg = NULL;
+
+    DEBUG(">> engine=%p, name=%s, params=%p", engine, name, params);
+
+    err = RcmClient_alloc(handle, sizeof(VIDENC2_create__args), &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    msg->fxnIdx = idx_VIDENC2_create;
+    args = (VIDENC2_create__args *)&(msg->data);
+    args->in.pid    = pid;
+    args->in.engine = (Uint32)engine;
+    strncpy(args->in.name, name, DIM(args->in.name)-1);
+    args->in.params = virt2ducati(params);
+
+    err = RcmClient_exec(handle, msg, &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    args = (VIDENC2_create__args *)&(msg->data);
+    ret = (VIDENC2_Handle)args->out.codec;
+
+    DEBUG("<< codec=%p", ret);
+
+out:
+    if (msg) {
+        RcmClient_free (handle, msg);
+    }
+
+    return ret;
+}
 #endif
 
 /*
@@ -570,6 +788,24 @@ typedef union {
     } out;
 } VIDDEC3_control__args;
 
+//add by lyc 20110922
+/*
+ * VIDENC2_control
+ */
+
+typedef union {
+    struct {
+        Int             pid;
+        Uint32          codec;
+        VIDENC2_Cmd     id;
+        Uint32          dynParams;
+        Uint32          status;
+    } in;
+    struct {
+        XDAS_Int32      ret;
+    } out;
+} VIDENC2_control__args;
+
 #ifdef SERVER
 static Int32 rpc_VIDDEC3_control(UInt32 size, UInt32 *data)
 {
@@ -586,6 +822,28 @@ static Int32 rpc_VIDDEC3_control(UInt32 size, UInt32 *data)
     dce_clean (dynParams);
     dce_clean (status);
     DEBUG("<< ret=%d", args->out.ret);
+
+    return 0;
+}
+
+//add by lyc 20110922
+static Int32 rpc_VIDENC2_control(UInt32 size, UInt32 *data)
+{
+	VIDENC2_control__args *args = (VIDENC2_control__args *)data;
+	VIDENC2_DynamicParams *dynParams =
+            (VIDENC2_DynamicParams *)args->in.dynParams;
+    VIDENC2_Status *status = (VIDENC2_Status *)args->in.status;
+
+    DEBUG(">> codec=%p, id=%d, dynParams=%p, status=%p",
+            args->in.codec, args->in.id, dynParams, status);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
+    args->out.ret = (Uint32)VIDENC2_control(
+            (VIDENC2_Handle)args->in.codec, args->in.id, dynParams, status);
+    dce_clean (dynParams);
+    dce_clean (status);
+    DEBUG("<< ret=%d", args->out.ret);
+
+    printf("rpc_vidence2_control return value is :%d\n",args->out.ret);
 
     return 0;
 }
@@ -634,6 +892,53 @@ out:
 
     return ret;
 }
+
+//add by lyc 20110922
+static UInt32 idx_VIDENC2_control;
+XDAS_Int32 VIDENC2_control(VIDENC2_Handle codec, VIDENC2_Cmd id,
+        VIDENC2_DynamicParams *dynParams, VIDENC2_Status *status)
+{
+    int err;
+    XDAS_Int32 ret;
+    VIDENC2_control__args *args;
+    RcmClient_Message *msg = NULL;
+
+    DEBUG(">> codec=%p, id=%d, dynParams=%p, status=%p",
+            codec, id, dynParams, status);
+
+    err = RcmClient_alloc(handle, sizeof(VIDENC2_control__args), &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    msg->fxnIdx = idx_VIDENC2_control;
+    args = (VIDENC2_control__args *)&(msg->data);
+    args->in.pid        = pid;
+    args->in.codec      = (Uint32)codec;
+    args->in.id         = id;
+    args->in.dynParams  = virt2ducati(dynParams);
+    args->in.status     = virt2ducati(status);
+
+    err = RcmClient_exec(handle, msg, &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    args = (VIDENC2_control__args *)&(msg->data);
+    ret = args->out.ret;
+
+    DEBUG("<< ret=%d", ret);
+    printf("videnc2_control return value is :%d\n",ret);
+
+out:
+    if (msg) {
+        RcmClient_free (handle, msg);
+    }
+
+    return ret;
+}
 #endif
 
 /*
@@ -654,6 +959,25 @@ typedef union {
     } out;
 } VIDDEC3_process__args;
 
+//add by lyc 20110922
+/*
+ * VIDENC2_process
+ */
+
+typedef union {
+    struct {
+        Int        pid;
+        Uint32     codec;
+        Uint32     inBufs;
+        Uint32     outBufs;
+        Uint32     inArgs;
+        Uint32     outArgs;
+    } in;
+    struct {
+        XDAS_Int32 ret;
+    } out;
+} VIDENC2_process__args;
+
 #ifdef SERVER
 static Int32 rpc_VIDDEC3_process(UInt32 size, UInt32 *data)
 {
@@ -669,6 +993,30 @@ static Int32 rpc_VIDDEC3_process(UInt32 size, UInt32 *data)
     ivahd_acquire();
     args->out.ret = (Uint32)VIDDEC3_process(
             (VIDDEC3_Handle)args->in.codec, inBufs, outBufs, inArgs, outArgs);
+    ivahd_release();
+    dce_clean (inBufs);
+    dce_clean (outBufs);
+    dce_clean (inArgs);
+    dce_clean (outArgs);
+    DEBUG("<< ret=%d", args->out.ret);
+
+    return 0;
+}
+//add by lyc 20110922
+static Int32 rpc_VIDENC2_process(UInt32 size, UInt32 *data)
+{
+    VIDENC2_process__args *args = (VIDENC2_process__args *)data;
+    IVIDEO2_BufDesc    *inBufs  = (IVIDEO2_BufDesc *)args->in.inBufs;
+    XDM2_BufDesc    *outBufs = (XDM2_BufDesc *)args->in.outBufs;
+    VIDENC2_InArgs  *inArgs  = (VIDENC2_InArgs *)args->in.inArgs;
+    VIDENC2_OutArgs *outArgs = (VIDENC2_OutArgs *)args->in.outArgs;
+
+    DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p",
+            args->in.codec, inBufs, outBufs, inArgs, outArgs);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
+    ivahd_acquire();
+    args->out.ret = (Uint32)VIDENC2_process(
+            (VIDENC2_Handle)args->in.codec, inBufs, outBufs, inArgs, outArgs);
     ivahd_release();
     dce_clean (inBufs);
     dce_clean (outBufs);
@@ -725,6 +1073,54 @@ out:
 
     return ret;
 }
+
+//add by lyc 20110922
+static UInt32 idx_VIDENC2_process;
+XDAS_Int32 VIDENC2_process(VIDENC2_Handle codec,
+		IVIDEO2_BufDesc *inBufs, XDM2_BufDesc *outBufs,
+        VIDENC2_InArgs *inArgs, VIDENC2_OutArgs *outArgs)
+{
+    int err;
+    XDAS_Int32 ret;
+    VIDENC2_process__args *args;
+    RcmClient_Message *msg = NULL;
+
+    DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p",
+            codec, inBufs, outBufs, inArgs, outArgs);
+
+    err = RcmClient_alloc(handle, sizeof(VIDENC2_process__args), &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    msg->fxnIdx = idx_VIDENC2_process;
+    args = (VIDENC2_process__args *)&(msg->data);
+    args->in.pid     = pid;
+    args->in.codec   = (Uint32)codec;
+    args->in.inBufs  = virt2ducati(inBufs);
+    args->in.outBufs = virt2ducati(outBufs);
+    args->in.inArgs  = virt2ducati(inArgs);
+    args->in.outArgs = virt2ducati(outArgs);
+
+    err = RcmClient_exec(handle, msg, &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    args = (VIDENC2_process__args *)&(msg->data);
+    ret = args->out.ret;
+
+    DEBUG("<< ret=%d", ret);
+
+out:
+    if (msg) {
+        RcmClient_free (handle, msg);
+    }
+
+    return ret;
+}
 #endif
 
 /*
@@ -738,6 +1134,18 @@ typedef union {
     } in;
 } VIDDEC3_delete__args;
 
+//add by lyc 20110922
+/*
+ * VIDENC2_delete
+ */
+
+typedef union {
+    struct {
+        Int    pid;
+        Uint32 codec;
+    } in;
+} VIDENC2_delete__args;
+
 #ifdef SERVER
 static Int32 rpc_VIDDEC3_delete(UInt32 size, UInt32 *data)
 {
@@ -748,6 +1156,21 @@ static Int32 rpc_VIDDEC3_delete(UInt32 size, UInt32 *data)
     DEBUG(">> codec=%08x", args->in.codec);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
     VIDDEC3_delete((VIDDEC3_Handle)(args->in.codec));
+    DEBUG("<<");
+
+    return 0;
+}
+
+//add by lyc 20110922
+static Int32 rpc_VIDENC2_delete(UInt32 size, UInt32 *data)
+{
+    VIDENC2_delete__args *args = (VIDENC2_delete__args *)data;
+
+    dce_unregister_codec_encoder(args->in.pid, (VIDENC2_Handle)(args->in.codec));
+
+    DEBUG(">> codec=%08x", args->in.codec);
+    Task_setEnv(Task_self(), (Ptr) args->in.pid);
+    VIDENC2_delete((VIDENC2_Handle)(args->in.codec));
     DEBUG("<<");
 
     return 0;
@@ -786,6 +1209,41 @@ out:
         RcmClient_free (handle, msg);
     }
 }
+
+//add by lyc 20110922
+static UInt32 idx_VIDENC2_delete;
+Void VIDENC2_delete(VIDENC2_Handle codec)
+{
+    int err;
+    VIDENC2_delete__args *args;
+    RcmClient_Message *msg = NULL;
+
+    DEBUG(">> codec=%p", codec);
+
+    err = RcmClient_alloc(handle, sizeof(VIDENC2_delete__args), &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    msg->fxnIdx = idx_VIDENC2_delete;
+    args = (VIDENC2_delete__args *)&(msg->data);
+    args->in.pid   = pid;
+    args->in.codec = (Uint32)codec;
+
+    err = RcmClient_exec(handle, msg, &msg);
+    if (err < 0) {
+        ERROR("fail: %08x", err);
+        goto out;
+    }
+
+    DEBUG("<<");
+
+out:
+    if (msg) {
+        RcmClient_free (handle, msg);
+    }
+}
 #endif
 
 /*
@@ -796,6 +1254,7 @@ out:
 static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
 {
     Client *c;
+    ClientEncoder *c2;
 
     if (evt != slpm_PROC_OBIT) {
         return;
@@ -804,6 +1263,7 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
     // TODO should be synchronized, but re-entrant..
 
     c = get_client(pid);
+    c2 = get_client_encoder(pid);
     INFO("cleanup: pid=%d, c=%p", pid, c);
 
     if (c) {
@@ -827,6 +1287,32 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
                 INFO("automatically closing engine: %p", c->engines[i]);
                 args.in.pid = pid;
                 args.in.engine = (Uint32)c->engines[i];
+                rpc_Engine_close(sizeof(args), (Uint32 *)&args);
+            }
+        }
+    }
+
+    if (c2) {
+        int i;
+
+        /* delete all codecs first */
+        for (i = 0; i < DIM(c2->codecs); i++) {
+            if (c2->codecs[i]) {
+                VIDENC2_delete__args args;
+                INFO("automatically deleting codec: %p", c2->codecs[i]);
+                args.in.pid = pid;
+                args.in.codec = (Uint32)c2->codecs[i];
+                rpc_VIDENC2_delete(sizeof(args), (Uint32 *)&args);
+            }
+        }
+
+        /* and lastly close all engines */
+        for (i = 0; i < DIM(c2->engines); i++) {
+            if (c2->engines[i]) {
+                Engine_close__args args;
+                INFO("automatically closing engine: %p", c2->engines[i]);
+                args.in.pid = pid;
+                args.in.engine = (Uint32)c2->engines[i];
                 rpc_Engine_close(sizeof(args), (Uint32 *)&args);
             }
         }
@@ -871,6 +1357,12 @@ int dce_init(void)
     SETUP_FXN(handle, VIDDEC3_control);
     SETUP_FXN(handle, VIDDEC3_process);
     SETUP_FXN(handle, VIDDEC3_delete);
+
+    //add by lyc 20110922
+    SETUP_FXN(handle, VIDENC2_create);
+    SETUP_FXN(handle, VIDENC2_control);
+    SETUP_FXN(handle, VIDENC2_process);
+    SETUP_FXN(handle, VIDENC2_delete);
 
 #ifdef SERVER
     RcmServer_start(handle);
