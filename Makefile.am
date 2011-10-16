@@ -1,7 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
 SUBDIRS                      = \
-                               test \
                                packages/codec_engine \
                                packages/ivahd_codecs \
                                packages/xdctools \
@@ -26,8 +25,3 @@ libdce_la_include_HEADERS    = dce.h
 
 pkgconfig_DATA               = libdce.pc
 pkgconfigdir                 = $(libdir)/pkgconfig
-
-# Test Apps:
-bin_PROGRAMS                 = dcetestdec
-dcetestdec_SOURCES           = 
-dcetestdec_LDADD             = test/libtestdec.la libdce.la $(DRM_LIBS)

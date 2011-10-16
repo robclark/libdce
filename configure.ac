@@ -77,7 +77,6 @@ dnl *** set variables based on configure arguments ***
 AC_CONFIG_FILES([
 libdce.pc
 Makefile
-test/Makefile
 packages/codec_engine/Makefile
 packages/ivahd_codecs/Makefile
 packages/xdais/Makefile
