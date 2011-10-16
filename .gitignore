@@ -23,4 +23,4 @@ dcetest
 .libraries*
 *.mak
 *.xem3
-ducati/platform/base_image/package
+ducati/ti/dce/package

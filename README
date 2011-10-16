@@ -1,4 +1,4 @@
-= About Distributed Codec Engine =
+= About Distributed Codec Engine - RPMSG =
 
 DCE is a library to remotely invoke the hw accellerated codecs on IVA-HD via a syslink/rcm shim layer.  This provides access to the [http://processors.wiki.ti.com/index.php/Category:Codec_Engine Codec Engine] codec interface on the coprocessor (ducati/M3) from the host.
 
@@ -21,22 +21,21 @@ These instructions are assuming you are cross-compiling on a linux machine for d
 
 The following gives an example of how to build.  I don't claim that it is the best or only way.  But these are the versions I am currently using:
 
-* TMS470/ARM Code Generation Tools (CGT) - 4.6.1
-* XDC tools - 3.20.07.86
-* BIOS (the RTOS) - 6.31.03.25
+* TMS470/ARM Code Generation Tools (CGT) - 4.9.0
+* XDC tools - 3.22.03.41
+* BIOS (the RTOS) - 6.32.01.38
 * Codec Engine (CE) - 3.20.00.16
 * Framework Component (FC) - 3.20.00.22
 * XDAIS - 7.20.00.07
 * HDVICP2 API and HDVICP2_CODECS - 1.00.000
-* bios-syslink - commit-id [https://gitorious.org/bios-syslink/bios-syslink/commit/48e98007e21e311c126f89ff51616bf6d7067b9d 48e98007e21e311c126f89ff51616bf6d7067b9d]
+* sysbios-rpmsg - commit-id [https://github.com/ohadbc/sysbios-rpmsg/commit/885db2a4f8ae20f89ef6574e29632433e7e7de4c 885db2a4f8ae20f89ef6574e29632433e7e7de4c]
 * libdce
 
 On linux side, the following versions are used:
 
-* kernel ... 2.6.38 linaro kernel plus ???
-** for now I am using: [https://github.com/robclark/kernel-omap4/tree/ti-omap4-drm-syslink-v4l2/ git://github.com/robclark/kernel-omap4.git ti-omap4-drm-syslink-v4l2 branch]
-* syslink userspace:  syslink-2.0
-* tiler/memmgr userspace: memmgr_2.0
+* kernel ... 3.1-rc7 plus omapdrm and omapdce
+** for now I am using: [https://github.com/robclark/kernel-omap4/tree/rpmsg git://github.com/robclark/kernel-omap4.git rpmsg branch]
+* libdce userspace:  rpmsg branch
 
 
 == Building Ducati/M3 Side ==
@@ -113,53 +112,38 @@ You should end up with:
 
 Setup environment variables needed for the build steps:
 
- export TMS470_C_DIR="$HOME/ducati/ti_cgt_tms470_4_6_1/include;$HOME/ducati/ti_cgt_tms470_4_6_1/lib"
- export TMS470CGTOOLPATH="$HOME/ducati/ti_cgt_tms470_4_6_1"
+ dir="$HOME/ducati"
+ export TMS470CGTOOLPATH="$dir/ti_cgt_tms470_4_9_0"
+ export TMS470_C_DIR="$TMS470CGTOOLPATH/include;$TMS470CGTOOLPATH/lib"
  XDCPATH=""
- for f in $HOME/ducati/*/packages; do
+ for f in $dir/*/packages $dir/*/cetools/packages $dir/sysbios-rpmsg/src; do
    XDCPATH="$XDCPATH$f;"
  done
- export XDCPATH="$XDCPATH$HOME/ducati/bios_6_31_03_25/packages"
- export XDCROOT="$HOME/ducati/xdctools_3_20_07_86"
+ export XDCPATH
+ export XDCROOT="$dir/xdctools_3_22_03_41"
  export XDCARGS="profile=release"
 
 Note: if you are using different version numbers, the paths would have to be adjusted accordingly.
 
-=== Build Syslink ===
+=== Build RPMSG ===
 
-Clone ''syslink'' tree in ''$HOME/ducati/bios-syslink''
+Clone ''rpmsg'' tree in ''$HOME/ducati/sysbios-rpmsg''
 
  cd $HOME/ducati
- git clone git://gitorious.org/bios-syslink/bios-syslink.git
- cd bios-syslink/packages
- git checkout 48e98007e21e311c126f89ff51616bf6d7067b9d
+ git clone git://github.com/ohadbc/sysbios-rpmsg.git
+ cd sysbios-rpmsg
 
-At this point, since we are not building the DSP/c64 image, we can comment out a line in the build.cfg:
+Build rpmsg:
 
- diff --git a/packages/config.bld b/packages/config.bld
- index 01113a1..17e9862 100644
- --- a/packages/config.bld
- +++ b/packages/config.bld
- @@ -228,6 +228,5 @@ M3.platform = M3.platforms[0];
-  
-  //Uncomment the require targets
-  Build.targets = [
- -                    C64T,
-                      M3,
-                  ];
+ $XDCROOT/xdc clean -Pr src
+ $XDCROOT/xdc -k -P `$XDCROOT/bin/xdcpkg src/ti |  egrep -v -e "/tests|/apps" | xargs`
 
-Now resume build:
+Build utilities to generate ducati-m3.bin firmware file:
 
- export XDCBUILDCFG="`pwd`/config.bld"
- $XDCROOT/xdc clean -PR ./ti
- $XDCROOT/xdc -PR ./ti/sdo ./ti/omap/uart/ ./ti/omap/mem/ ./ti/omap/platform/ ./ti/omap/slpm/ ./ti/omap/deh ./ti/omap/hdmiwa
- $XDCROOT/xdc -PR ./ti/omap/samples/notify
+ (cd src/utils/elfload && make clean && make)
+ (cd src/utils && make clean && make readrprc wrints genbase)
 
-When the build succeeds, the ''sysm3 image'' will be in: ''ti/omap/samples/notify/ti_omap_platform_core0/release/Notify_MPUSYS_reroute_Test_Core0.xem3''.
-
-Note: For now, instead of git://git.omapzoom.org/platform/hardware/ti/bios-syslink.git, we use the gitorious tree.  There are some kernel patches missing in ubuntu/linaro 2.6.38 kernel (for now) which are needed to use the latest official tree.  (Probably the missing patch is [http://review.omapzoom.org/#change,13113 this].)
-
-Note: If you change ''syslink'', you need to rebuild ''libdce''. When you build syslink you build both the ''sysm3'' image, plus ''syslink'' libraries used by the ''appm3'' image.
+Note: If you change ''rpmsg'', you need to rebuild ''libdce''.
 
 === Build DCE ===
 
@@ -172,52 +156,28 @@ Clone ''libdce'' tree in ''$HOME/ducati/libdce''
  cd $HOME/ducati
  git clone git://github.com/robclark/libdce.git
  cd libdce
+ git checkout --track -b rpmsg origin/rpmsg
+
+Build ducati firmware:t://github.com/robclark/libdce.git
  
- export XDCBUILDCFG="`pwd`/ducati/build/config.bld"
- cd ducati/platform/base_image
- $XDCROOT/xdc -j4 -PD .
+ $XDCROOT/xdc clean -Pr ducati
+ $XDCROOT/xdc -k -Pr ducati
 
-When the build succeeds, the ''appm3'' image will be in ''out/app_m3/release/dce_app_m3.xem3''.
+Generate ducati-m3.bin:
 
-Note: To reduce the size of the images, the debug symbols can be stripped:
+ $HOME/ducati/sysbios-rpmsg/src/utils/genrprc ducati/ti/dce/ti_platform_omap4430_core0/debug/dce_sysm3.xem3 ducati/ti/dce/ti_platform_omap4430_core1/debug/dce_appm3.xem3 firmware/ducati-m3.bin
 
- $TMS470CGTOOLPATH/bin/strip470 Notify_MPUSYS_reroute_Test_Core0.xem3 
- $TMS470CGTOOLPATH/bin/strip470 dce_app_m3.xem3
 
 == Building Linux/A9 side: ==
 
 Standard autotools build for cortex-a9 side userspace components.
 
-* kernel: 2.6.38 linaro kernel
-** .. patches ..
-* tiler: 
-** git://git.omapzoom.org/platform/hardware/ti/tiler.git
-** branch: memmgr_2.0
-* syslink:
-** git://git.omapzoom.org/platform/hardware/ti/syslink.git
-** branch: syslink-2.0
-
-=== Build TILER userspace ===
-
- git clone git://git.omapzoom.org/platform/hardware/ti/tiler.git
- cd tiler
- git checkout origin/memmgr_2.0
- ./bootstrap.sh
- ./configure --prefix=/usr
- make -j4
- sudo make install
-
-=== Build Syslink userspace ===
-
-Ignore the build instructions in syslink tree if you are building natively.  Too much to read..
-
- git clone git://git.omapzoom.org/platform/hardware/ti/syslink.git
- cd syslink/syslink
- git checkout origin/syslink-2.0
- ./bootstrap.sh
- ./configure --prefix=/usr
- make -j4
- sudo make install
+* kernel: 3.1-rc7 kernel
+** git://github.com/robclark/kernel-omap4.git
+** branch: rpmsg
+* libdce: 
+** git://github.com/robclark/libdce.git
+** branch: rpmsg
 
 == Build DCE userspace ==
 
