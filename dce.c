@@ -826,14 +826,21 @@ static Int32 rpc_VIDDEC3_control(UInt32 size, UInt32 *data)
     return 0;
 }
 
+static XDAS_Int32 getBufferFxnStub(XDM_DataSyncHandle handle, XDM_DataSyncDesc *desc)
+{
+    return 0;
+}
+
 //add by lyc 20110922
 static Int32 rpc_VIDENC2_control(UInt32 size, UInt32 *data)
 {
-	VIDENC2_control__args *args = (VIDENC2_control__args *)data;
-	VIDENC2_DynamicParams *dynParams =
+	  VIDENC2_control__args *args = (VIDENC2_control__args *)data;
+	  VIDENC2_DynamicParams *dynParams =
             (VIDENC2_DynamicParams *)args->in.dynParams;
     VIDENC2_Status *status = (VIDENC2_Status *)args->in.status;
 
+    dynParams->getBufferFxn = getBufferFxnStub;
+    
     DEBUG(">> codec=%p, id=%d, dynParams=%p, status=%p",
             args->in.codec, args->in.id, dynParams, status);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
