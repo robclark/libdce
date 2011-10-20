@@ -27,7 +27,7 @@ libdce_la_include_HEADERS    = dce.h
 bin_PROGRAMS                 = dcetest
 dcetest_SOURCES              = test.c
 dcetest_CFLAGS               = $(CE_CFLAGS) $(MEMMGR_CFLAGS)
-dcetest_LDADD                = libdce.la
+dcetest_LDADD                = libdce.la $(MEMMGR_LIBS)
 
 pkgconfig_DATA               = libdce.pc
 pkgconfigdir                 = $(libdir)/pkgconfig
