@@ -143,11 +143,13 @@ UInt32 HDVICP_Reset(void * handle, void * iresHandle)
      * MAY NOT BE POSSIBLE
      */
 
+#if 0
     /* Copy boot code to ICONT1 & ICONT2 memory */
     for (i = 0; i < DIM(icont_boot); i++) {
         *icont1_itcm_base_addr++ = icont_boot[i];
         *icont2_itcm_base_addr++ = icont_boot[i];
     }
+#endif
 
     /* Ensure that the wake up mode is set to SW_WAKEUP */
     CM_IVAHD_CLKSTCTRL &= 0x00000002;
