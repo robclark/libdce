@@ -1281,11 +1281,9 @@ static void init(void)
 
     pthread_mutex_lock(&mutex);
 
-    if (count > 0) {
+    if (count++ > 0) {
         goto out;
     }
-
-    count++;
 
     Ipc_getConfig(&config);
 
