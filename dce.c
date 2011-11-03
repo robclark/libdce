@@ -193,11 +193,22 @@ static void dce_clean(void *ptr)
 #include <ti/sdo/rcm/RcmClient.h>
 #include <ti/omap/mem/MemMgr.h>
 
+typedef enum {
+    CLIENT_CODEC_UNUSED = 0,
+    CLIENT_CODEC_DECODER,
+    CLIENT_CODEC_ENCODER
+} ClientCodecType;
+
+typedef struct {
+    void *handle;
+    ClientCodecType type;
+} ClientCodec;
+
 typedef struct {
     Int pid;                      /* value of zero means unused */
     Int refs;
     Engine_Handle    engines[10]; /* adjust size per max engines per client */
-    VIDDEC3_Handle   codecs[10];  /* adjust size per max codecs per client */
+    ClientCodec   codecs[20];  /* adjust size per max codecs per client */
 } Client;
 static Client clients[10] = {0};  /* adjust size per max-clients .. */
 
@@ -207,26 +218,6 @@ static inline Client * get_client(Int pid)
     for (i = 0; i < DIM(clients); i++) {
         if (clients[i].pid == pid) {
             return &clients[i];
-        }
-    }
-    return NULL;
-}
-
-//add by lyc 20110922
-typedef struct {
-    Int pid;                      /* value of zero means unused */
-    Int refs;
-    Engine_Handle    engines[10]; /* adjust size per max engines per client */
-    VIDENC2_Handle   codecs[10];  /* adjust size per max codecs per client */
-} ClientEncoder;
-static ClientEncoder clientsEncoder[10] = {0};  /* adjust size per max-clients .. */
-
-static inline ClientEncoder * get_client_encoder(Int pid)
-{
-    int i;
-    for (i = 0; i < DIM(clientsEncoder); i++) {
-        if (clientsEncoder[i].pid == pid) {
-            return &clientsEncoder[i];
         }
     }
     return NULL;
@@ -267,40 +258,6 @@ out:
     return;
 }
 
-//add by lyc 20110922
-static void dce_register_engine_encoder(Int pid, Engine_Handle engine)
-{
-    ClientEncoder *c;
-
-    // TODO register/unregister should have critical section..
-
-    c = get_client_encoder(pid);
-    if (c) {
-        int i;
-        INFO("found mem client: %p refs=%d", c, c->refs);
-        c->refs++;
-        for (i = 0; i < DIM(c->engines); i++) {
-            if (c->engines[i] == NULL) {
-                c->engines[i] = engine;
-                INFO("registered engine: pid=%d engine=%p", pid, engine);
-                break;
-            }
-        }
-    } else {
-        c = get_client_encoder(0);
-        if (!c) {
-            ERROR("too many clients");
-            goto out;
-        }
-
-        c->pid = pid;
-        c->refs = 1;
-        c->engines[0] = engine;
-    }
-out:
-    // end critical section..
-    return;
-}
 
 static void dce_unregister_engine(Int pid, Engine_Handle engine)
 {
@@ -331,37 +288,7 @@ static void dce_unregister_engine(Int pid, Engine_Handle engine)
     // end critical section..
 }
 
-//add by lyc 20110922
-static void dce_unregister_engine_encoder(Int pid, Engine_Handle engine)
-{
-    ClientEncoder *c;
-
-    // TODO register/unregister should have critical section..
-
-    c = get_client_encoder(pid);
-    if (c) {
-        int i;
-
-        INFO("found mem client: %p refs=%d", c, c->refs);
-
-        for (i = 0; i < DIM(c->engines); i++) {
-            if (c->engines[i] == engine) {
-                c->engines[i] = NULL;
-                INFO("unregistered engine: pid=%d engine=%p", pid, engine);
-                break;
-            }
-        }
-        c->refs--;
-
-        if (! c->refs) {
-            c->pid = 0;
-        }
-    }
-
-    // end critical section..
-}
-
-static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
+static void dce_register_codec(Int pid, ClientCodecType type, void *handle)
 {
     Client *c;
 
@@ -373,9 +300,10 @@ static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
         INFO("found mem client: %p refs=%d", c, c->refs);
         c->refs++;
         for (i = 0; i < DIM(c->codecs); i++) {
-            if (c->codecs[i] == NULL) {
-                c->codecs[i] = codec;
-                INFO("registering codec: pid=%d codec=%p", pid, codec);
+            if (c->codecs[i].type == CLIENT_CODEC_UNUSED) {
+                c->codecs[i].type = type;
+                c->codecs[i].handle = handle;
+                INFO("registering codec: pid=%d codec=%p", pid, handle);
                 break;
             }
         }
@@ -384,31 +312,7 @@ static void dce_register_codec(Int pid, VIDDEC3_Handle codec)
     return;
 }
 
-//add by lyc 20110902
-static void dce_register_codec_encoder(Int pid, VIDENC2_Handle codec)
-{
-    Client *c;
-
-    // TODO register/unregister should have critical section..
-
-    c = get_client(pid);
-    if (c) {
-        int i;
-        INFO("found mem client: %p refs=%d", c, c->refs);
-        c->refs++;
-        for (i = 0; i < DIM(c->codecs); i++) {
-            if (c->codecs[i] == NULL) {
-                c->codecs[i] = codec;
-                INFO("registering codec: pid=%d codec=%p", pid, codec);
-                break;
-            }
-        }
-    }
-    // end critical section..
-    return;
-}
-
-static void dce_unregister_codec(Int pid, VIDDEC3_Handle codec)
+static void dce_unregister_codec(Int pid, void *codec)
 {
     Client *c;
 
@@ -421,34 +325,9 @@ static void dce_unregister_codec(Int pid, VIDDEC3_Handle codec)
         INFO("found mem client: %p refs=%d", c, c->refs);
 
         for (i = 0; i < DIM(c->codecs); i++) {
-            if (c->codecs[i] == codec) {
-                c->codecs[i] = NULL;
-                INFO("unregistered pid=%d codec=%p", pid, codec);
-                break;
-            }
-        }
-        c->refs--;
-    }
-
-    // end critical section..
-}
-
-//add by lyc 20110922
-static void dce_unregister_codec_encoder(Int pid, VIDENC2_Handle codec)
-{
-    Client *c;
-
-    // TODO register/unregister should have critical section..
-
-    c = get_client(pid);
-    if (c) {
-        int i;
-
-        INFO("found mem client: %p refs=%d", c, c->refs);
-
-        for (i = 0; i < DIM(c->codecs); i++) {
-            if (c->codecs[i] == codec) {
-                c->codecs[i] = NULL;
+            if (c->codecs[i].handle == codec) {
+                c->codecs[i].handle = NULL;
+                c->codecs[i].type = CLIENT_CODEC_UNUSED;
                 INFO("unregistered pid=%d codec=%p", pid, codec);
                 break;
             }
@@ -492,10 +371,8 @@ static Int32 rpc_Engine_open(UInt32 size, UInt32 *data)
     args->out.ec = ec;
     DEBUG("<< engine=%08x, ec=%d", args->out.engine, args->out.ec);
 
-    if (args->out.engine) {
+    if (args->out.engine)
         dce_register_engine(pid, (Engine_Handle)(args->out.engine));
-        dce_register_engine_encoder(pid, (Engine_Handle)(args->out.engine));
-    }
 
     return 0;
 }
@@ -564,8 +441,6 @@ static Int32 rpc_Engine_close(UInt32 size, UInt32 *data)
     Engine_close__args *args = (Engine_close__args *)data;
 
     dce_unregister_engine(args->in.pid, (Engine_Handle)(args->in.engine));
-    dce_unregister_engine_encoder(args->in.pid, (Engine_Handle)(args->in.engine));
-
 
     DEBUG(">> engine=%08x", args->in.engine);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
@@ -656,7 +531,7 @@ static Int32 rpc_VIDDEC3_create(UInt32 size, UInt32 *data)
     DEBUG("<< codec=%08x", args->out.codec);
 
     if (args->out.codec) {
-        dce_register_codec(pid, (VIDDEC3_Handle)(args->out.codec));
+        dce_register_codec(pid, CLIENT_CODEC_DECODER, (void *)args->out.codec);
     }
 
     return 0;
@@ -676,9 +551,8 @@ static Int32 rpc_VIDENC2_create(UInt32 size, UInt32 *data)
     dce_clean (params);
     DEBUG("<< codec=%08x", args->out.codec);
 
-    if (args->out.codec) {
-        dce_register_codec_encoder(pid, (VIDENC2_Handle)(args->out.codec));
-    }
+    if (args->out.codec)
+        dce_register_codec(pid, CLIENT_CODEC_ENCODER, (void *) args->out.codec);
 
     return 0;
 }
@@ -1158,7 +1032,7 @@ static Int32 rpc_VIDDEC3_delete(UInt32 size, UInt32 *data)
 {
     VIDDEC3_delete__args *args = (VIDDEC3_delete__args *)data;
 
-    dce_unregister_codec(args->in.pid, (VIDDEC3_Handle)(args->in.codec));
+    dce_unregister_codec(args->in.pid, (void *) args->in.codec);
 
     DEBUG(">> codec=%08x", args->in.codec);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
@@ -1173,7 +1047,7 @@ static Int32 rpc_VIDENC2_delete(UInt32 size, UInt32 *data)
 {
     VIDENC2_delete__args *args = (VIDENC2_delete__args *)data;
 
-    dce_unregister_codec_encoder(args->in.pid, (VIDENC2_Handle)(args->in.codec));
+    dce_unregister_codec (args->in.pid, (void *) args->in.codec);
 
     DEBUG(">> codec=%08x", args->in.codec);
     Task_setEnv(Task_self(), (Ptr) args->in.pid);
@@ -1261,7 +1135,6 @@ out:
 static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
 {
     Client *c;
-    ClientEncoder *c2;
 
     if (evt != slpm_PROC_OBIT) {
         return;
@@ -1270,7 +1143,6 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
     // TODO should be synchronized, but re-entrant..
 
     c = get_client(pid);
-    c2 = get_client_encoder(pid);
     INFO("cleanup: pid=%d, c=%p", pid, c);
 
     if (c) {
@@ -1278,12 +1150,25 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
 
         /* delete all codecs first */
         for (i = 0; i < DIM(c->codecs); i++) {
-            if (c->codecs[i]) {
-                VIDDEC3_delete__args args;
-                INFO("automatically deleting codec: %p", c->codecs[i]);
-                args.in.pid = pid;
-                args.in.codec = (Uint32)c->codecs[i];
-                rpc_VIDDEC3_delete(sizeof(args), (Uint32 *)&args);
+            switch (c->codecs[i].type) {
+                case CLIENT_CODEC_DECODER:
+		{
+                    VIDDEC3_delete__args args;
+                    INFO("automatically deleting decoder: %p", c->codecs[i].handle);
+                    args.in.pid = pid;
+                    args.in.codec = (Uint32)c->codecs[i].handle;
+                    rpc_VIDDEC3_delete(sizeof(args), (Uint32 *)&args);
+                    break;
+		}
+                case CLIENT_CODEC_ENCODER:
+		{
+                    VIDENC2_delete__args args;
+                    INFO("automatically deleting encoder: %p", c->codecs[i].handle);
+                    args.in.pid = pid;
+                    args.in.codec = (Uint32)c->codecs[i].handle;
+                    rpc_VIDENC2_delete(sizeof(args), (Uint32 *)&args);
+                    break;
+		}
             }
         }
 
@@ -1294,32 +1179,6 @@ static void dce_cleanup_cb (slpm_eventType evt, UInt32 pid, int *err)
                 INFO("automatically closing engine: %p", c->engines[i]);
                 args.in.pid = pid;
                 args.in.engine = (Uint32)c->engines[i];
-                rpc_Engine_close(sizeof(args), (Uint32 *)&args);
-            }
-        }
-    }
-
-    if (c2) {
-        int i;
-
-        /* delete all codecs first */
-        for (i = 0; i < DIM(c2->codecs); i++) {
-            if (c2->codecs[i]) {
-                VIDENC2_delete__args args;
-                INFO("automatically deleting codec: %p", c2->codecs[i]);
-                args.in.pid = pid;
-                args.in.codec = (Uint32)c2->codecs[i];
-                rpc_VIDENC2_delete(sizeof(args), (Uint32 *)&args);
-            }
-        }
-
-        /* and lastly close all engines */
-        for (i = 0; i < DIM(c2->engines); i++) {
-            if (c2->engines[i]) {
-                Engine_close__args args;
-                INFO("automatically closing engine: %p", c2->engines[i]);
-                args.in.pid = pid;
-                args.in.engine = (Uint32)c2->engines[i];
                 rpc_Engine_close(sizeof(args), (Uint32 *)&args);
             }
         }
