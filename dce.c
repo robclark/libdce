@@ -60,6 +60,9 @@
             return _e;                                                         \
         }                                                                      \
     } while (0)
+#ifndef DCE_REQUEST_APPM3
+# define DCE_REQUEST_APPM3 1
+#endif
 #else
 #  include <Std.h>
 /* arrrg..  why can't people use stdint types!! */
@@ -1233,10 +1236,12 @@ int dce_init(void)
 #ifdef SERVER
     RcmServer_start(handle);
 
+#if DCE_REQUEST_APPM3
     err = slpm_request_pm_resource(&appm3, slpm_APPM3, NULL);
     if (err) {
         ERROR("could not request appm3");
     }
+#endif
 
     err = slpm_register_callback(&appm3, slpm_PROC_OBIT, 0, dce_cleanup_cb);
     if (err) {
