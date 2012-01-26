@@ -39,6 +39,8 @@
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/System.h>
 #include <xdc/runtime/Diags.h>
+#include <ti/sdo/fc/global/FCSettings.h>
+#include <ti/sdo/ce/global/CESettings.h>
 #include <xdc/runtime/knl/Thread.h>
 
 #include <ti/sysbios/BIOS.h>
@@ -59,6 +61,8 @@
 #include "dce_rpc.h"
 
 #define DCE_PORT 42     /* so long, and thanks for all the fish */
+
+uint32_t dce_debug = 1;
 
 /* AFAIK both TILER and heap are cached on ducati side.. so from wherever a9
  * allocates, we need to deal with cache to avoid coherency issues..
@@ -100,6 +104,37 @@ static struct {
 /*
  * RPC message handlers
  */
+
+static int connect(void *msg)
+{
+    struct dce_rpc_connect_req *req = msg;
+
+    DEBUG(">> chipset_id=0x%x, debug=%d", req->chipset_id, req->debug);
+    dce_debug = req->debug;
+
+    if (dce_debug <= 1) {
+        DEBUG("enabling extra debug");
+
+        FCSettings_init();
+        Diags_setMask(FCSETTINGS_MODNAME"+12345678LEXAIZFS");
+        CESettings_init();
+        Diags_setMask(CESETTINGS_MODNAME"+12345678LEXAIZFS");
+
+        /*
+         * Enable use of runtime Diags_setMask per module:
+         *
+         * Codes: E = ENTRY, X = EXIT, L = LIFECYCLE, F = INFO, S = STATUS
+         */
+        Diags_setMask("ti.ipc.rpmsg.MessageQCopy=EXLFS");
+        Diags_setMask("ti.ipc.rpmsg.VirtQueue=EXLFS");
+    }
+
+    /* TODO: based on chipset id we could setup base addresses so
+     * a single image can work on multiple generations of OMAP.
+     */
+    DEBUG("<<");
+    return 0;
+}
 
 static int engine_open(void *msg)
 {
@@ -301,6 +336,7 @@ static struct {
     int (*fxn)(void *msg);
     const char *name;
 } fxns[] = {
+        [DCE_RPC_CONNECT]       = FXN(connect),
         [DCE_RPC_ENGINE_OPEN]   = FXN(engine_open),
         [DCE_RPC_ENGINE_CLOSE]  = FXN(engine_close),
         [DCE_RPC_CODEC_CREATE]  = FXN(codec_create),

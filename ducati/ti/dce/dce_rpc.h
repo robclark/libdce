@@ -31,12 +31,14 @@
 
 /* Message-Ids:
  */
-#define DCE_RPC_ENGINE_OPEN		0x00
-#define DCE_RPC_ENGINE_CLOSE	0x01
-#define DCE_RPC_CODEC_CREATE	0x02
-#define DCE_RPC_CODEC_CONTROL	0x03
-#define DCE_RPC_CODEC_PROCESS	0x04
-#define DCE_RPC_CODEC_DELETE	0x05
+#define DCE_RPC_CONNECT			0x00
+/* leave room to add some control plane msgs later */
+#define DCE_RPC_ENGINE_OPEN		0x10
+#define DCE_RPC_ENGINE_CLOSE	0x11
+#define DCE_RPC_CODEC_CREATE	0x12
+#define DCE_RPC_CODEC_CONTROL	0x13
+#define DCE_RPC_CODEC_PROCESS	0x14
+#define DCE_RPC_CODEC_DELETE	0x15
 
 struct dce_rpc_hdr {
 	/* A Message-Id as defined above:
@@ -48,6 +50,12 @@ struct dce_rpc_hdr {
 	 * to requests:
 	 */
 	uint16_t req_id;
+} __packed;
+
+struct dce_rpc_connect_req {
+	struct dce_rpc_hdr hdr;
+	uint32_t chipset_id;
+	uint32_t debug;
 } __packed;
 
 struct dce_rpc_engine_open_req {

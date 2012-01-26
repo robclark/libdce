@@ -56,25 +56,29 @@ void ivahd_init(void);
 #endif
 
 /* set desired trace level:
- *   3 - error
- *   2 - error, info
- *   1 - error, info, debug  (very verbose)
+ *   4 - error
+ *   3 - error, info
+ *   2 - error, info, debug  (very verbose)
+ *   1 - error, info, debug, verbose (very very verbose)
  */
-#ifndef TRACE_LEVEL
-#  define TRACE_LEVEL 1
+#ifndef DCE_DEBUG
+#  define DCE_DEBUG 1
 #endif
 
 #ifndef SERVER
 #  define System_printf      printf
 #endif
 
-#define TRACE(lvl, FMT,...)  do if ((lvl) >= TRACE_LEVEL) { \
+extern uint32_t dce_debug;
+
+#define TRACE(lvl, FMT,...)  do if ((lvl) >= dce_debug) { \
         System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
     } while (0)
 
-#define ERROR(FMT,...)   TRACE(3, "error: " FMT, ##__VA_ARGS__)
-#define INFO(FMT,...)    TRACE(2, "info: " FMT, ##__VA_ARGS__)
-#define DEBUG(FMT,...)   TRACE(1, "debug: " FMT, ##__VA_ARGS__)
+#define ERROR(FMT,...)   TRACE(4, "error: " FMT, ##__VA_ARGS__)
+#define INFO(FMT,...)    TRACE(3, "info: " FMT, ##__VA_ARGS__)
+#define DEBUG(FMT,...)   TRACE(2, "debug: " FMT, ##__VA_ARGS__)
+#define VERB(FMT,...)    TRACE(1, "verb: " FMT, ##__VA_ARGS__)
 
 #ifndef TRUE
 #  define TRUE 1

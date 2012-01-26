@@ -34,8 +34,6 @@
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/System.h>
 #include <xdc/runtime/Diags.h>
-#include <ti/sdo/fc/global/FCSettings.h>
-#include <ti/sdo/ce/global/CESettings.h>
 
 #include <ti/ipc/MultiProc.h>
 #include <ti/sysbios/BIOS.h>
@@ -71,23 +69,10 @@ int main(int argc, char **argv)
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
 
-//    FCSettings_init();
-//    Diags_setMask(FCSETTINGS_MODNAME"+12345678LEXAIZFS");
-//    CESettings_init();
-//    Diags_setMask(CESETTINGS_MODNAME"+12345678LEXAIZFS");
-
     ivahd_init();
     dce_init();
 
     DEBUG("Completed IPC setup and Server Bringup");
-
-    /*
-     * Enable use of runtime Diags_setMask per module:
-     *
-     * Codes: E = ENTRY, X = EXIT, L = LIFECYCLE, F = INFO, S = STATUS
-     */
-    Diags_setMask("ti.ipc.rpmsg.MessageQCopy=EXLFS");
-    Diags_setMask("ti.ipc.rpmsg.VirtQueue=EXLFS");
 
     BIOS_start();
 
