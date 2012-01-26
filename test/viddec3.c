@@ -30,31 +30,12 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <errno.h>
-
-#include <tilermem.h>
-#include <memmgr.h>
+#include <dce.h>
 #include <xdc/std.h>
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
 
-#include "dce.h"
-
-#define ERROR(FMT,...)  printf("%s:%d:\t%s\terror: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define DEBUG(FMT,...)  printf("%s:%d:\t%s\tdebug: " FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define MIN(a,b)        (((a) < (b)) ? (a) : (b))
-
-/* align x to next highest multiple of 2^n */
-#define ALIGN2(x,n)   (((x) + ((1 << (n)) - 1)) & ~((1 << (n)) - 1))
-
+#include "util.h"
 
 /*
  * A very simple VIDDEC3 client which will decode h264 frames (one per file),
@@ -72,124 +53,21 @@ XDM2_BufDesc           *outBufs   = NULL;
 VIDDEC3_InArgs         *inArgs    = NULL;
 VIDDEC3_OutArgs        *outArgs   = NULL;
 
-/*! Padding for width as per Codec Requirement */
+/* Padding for width as per Codec Requirement (for h264) */
 #define PADX  32
-/*! Padding for height as per Codec requirement */
+/* Padding for height as per Codec requirement (for h264)*/
 #define PADY  24
-
-static void * tiler_alloc(int width, int height)
-{
-    int dimensions;
-    MemAllocBlock block[2] = {0};
-
-    if (!height) {
-        /* 1d allocation: */
-        dimensions = 1;
-        block[0].pixelFormat = PIXEL_FMT_PAGE;
-        block[0].dim.len = width;
-    } else {
-        /* 2d allocation: */
-        dimensions = 2;
-        block[0].pixelFormat = PIXEL_FMT_8BIT;
-        block[0].dim.area.width  = width;
-        block[0].dim.area.height = height;
-        block[1].pixelFormat = PIXEL_FMT_16BIT;
-        block[1].dim.area.width  = width;
-        block[1].dim.area.height = height / 2;
-    }
-
-    return MemMgr_Alloc(block, dimensions);
-}
-
-/* ************************************************************************* */
-/* utilities to allocate/manage 2d output buffers */
-
-typedef struct OutputBuffer OutputBuffer;
-
-struct OutputBuffer {
-    char *buf;     /* virtual address for local access, 4kb stride */
-    SSPtr y, uv;   /* physical addresses of Y and UV for remote access */
-    OutputBuffer *next;      /* next free buffer */
-};
-
-/* list of free buffers, not locked by codec! */
-static OutputBuffer *head = NULL;
 
 int output_allocate(XDM2_BufDesc *outBufs, int cnt,
         int width, int height, int stride)
 {
-    int tw, th;
-
     outBufs->numBufs = 2;
 
-    if (stride != 4096) {
-        /* non-2d allocation! */
-        int size_y = stride * height;
-        int size_uv = stride * height / 2;
-        tw = size_y + size_uv;
-        th = 0;
-        outBufs->descs[0].memType = XDM_MEMTYPE_TILEDPAGE;
-        outBufs->descs[0].bufSize.bytes = size_y;
-        outBufs->descs[1].memType = XDM_MEMTYPE_TILEDPAGE;
-        outBufs->descs[1].bufSize.bytes = size_uv;
+    outBufs->descs[0].memType = XDM_MEMTYPE_BO;
+    outBufs->descs[1].memType = XDM_MEMTYPE_BO;
 
-    } else {
-        tw = width;
-        th = height;
-        outBufs->descs[0].memType = XDM_MEMTYPE_TILED8;
-        outBufs->descs[0].bufSize.tileMem.width  = width;
-        outBufs->descs[0].bufSize.tileMem.height = height;
-        outBufs->descs[1].memType = XDM_MEMTYPE_TILED16;
-        outBufs->descs[1].bufSize.tileMem.width  = width; /* UV interleaved width is same a Y */
-        outBufs->descs[1].bufSize.tileMem.height = height / 2;
-    }
-
-    while (cnt) {
-        OutputBuffer *buf = calloc(sizeof(OutputBuffer), 1);
-
-        buf->buf = tiler_alloc(tw, th);
-        buf->y   = TilerMem_VirtToPhys(buf->buf);
-        buf->uv  = TilerMem_VirtToPhys(buf->buf + (height * stride));
-
-        DEBUG("buf=%p, y=%08x, uv=%08x", buf, buf->y, buf->uv);
-
-        buf->next = head;
-        head = buf;
-
-        cnt--;
-    }
-
-    return 0;
+    return yuv_allocate(cnt, width, height, stride);
 }
-
-void output_free(void)
-{
-    OutputBuffer *buf = head;
-    while ((buf=head)) {
-        MemMgr_Free(buf->buf);
-        head = buf->next;
-        free(buf);
-    }
-}
-
-OutputBuffer * output_get(void)
-{
-    OutputBuffer *buf = head;
-    if (buf) {
-        head = buf->next;
-    }
-    DEBUG("get: %p", buf);
-    return buf;
-}
-
-void output_release(OutputBuffer *buf)
-{
-    DEBUG("release: %p", buf);
-    buf->next = head;
-    head = buf;
-}
-
-/* ************************************************************************* */
 
 /* get file path.. return path is only valid until next time this is called */
 static const char * get_path(const char *pattern, int cnt)
@@ -271,23 +149,13 @@ int write_output(const char *pattern, int cnt, char *y, char *uv, int stride)
     return sz;
 }
 
-/* for timing decode time */
-suseconds_t mark(suseconds_t *last)
-{
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    if (last) {
-        return t.tv_usec - *last;
-    }
-    return t.tv_usec;
-}
-
 /* decoder body */
 int main(int argc, char **argv)
 {
     Engine_Error ec;
     XDAS_Int32 err;
     char *input = NULL;
+    struct omap_bo *input_bo = NULL;
     char *in_pattern, *out_pattern;
     int in_cnt = 0, out_cnt = 0;
     int oned, stride;
@@ -336,6 +204,8 @@ int main(int argc, char **argv)
         ERROR("fail");
         goto out;
     }
+
+    util_init();
 
     params = dce_alloc(sizeof(IVIDDEC3_Params));
     params->size = sizeof(IVIDDEC3_Params);
@@ -392,13 +262,14 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    inBufs = dce_alloc(sizeof(XDM2_BufDesc));
+    inBufs = malloc(sizeof(XDM2_BufDesc));
     inBufs->numBufs = 1;
-    input = tiler_alloc(width * height, 0);
-    inBufs->descs[0].buf = (XDAS_Int8 *)TilerMem_VirtToPhys(input);
-    inBufs->descs[0].memType = XDM_MEMTYPE_RAW;
+    input_bo = bitstream_alloc(width * height);
+    input = omap_bo_map(input_bo);
+    inBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(input_bo);
+    inBufs->descs[0].memType = XDM_MEMTYPE_BO;
 
-    outBufs = dce_alloc(sizeof(XDM2_BufDesc));
+    outBufs = malloc(sizeof(XDM2_BufDesc));
 
     err = output_allocate(outBufs, num_buffers,
             padded_width, padded_height, stride);
@@ -414,11 +285,11 @@ int main(int argc, char **argv)
     outArgs->size = sizeof(IVIDDEC3_OutArgs);
 
     while (inBufs->numBufs && outBufs->numBufs) {
-        OutputBuffer *buf;
+        YUVBuffer *buf;
         int n, i;
         suseconds_t t;
 
-        buf = output_get();
+        buf = yuv_get();
         if (!buf) {
             ERROR("fail: out of buffers");
             goto shutdown;
@@ -437,12 +308,12 @@ int main(int argc, char **argv)
         }
 
         inArgs->inputID = (XDAS_Int32)buf;
-        outBufs->descs[0].buf = (XDAS_Int8 *)buf->y;
-        outBufs->descs[1].buf = (XDAS_Int8 *)buf->uv;
+        outBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(buf->y_bo);
+        outBufs->descs[1].buf = (XDAS_Int8 *)omap_bo_handle(buf->uv_bo);
 
         t = mark(NULL);
         err = VIDDEC3_process(codec, inBufs, outBufs, inArgs, outArgs);
-        DEBUG("processed returned in: %dus", (int)mark(&t));
+        DEBUG("processed returned in: %ldus", (long int)mark(&t));
         if (err) {
             ERROR("process returned error: %d", err);
             ERROR("extendedError: %08x", outArgs->extendedError);
@@ -452,19 +323,16 @@ int main(int argc, char **argv)
         for (i = 0; outArgs->outputID[i]; i++) {
             /* calculate offset to region of interest */
             XDM_Rect *r = &(outArgs->displayBufs.bufDesc[0].activeFrameRegion);
-            int yoff  = (r->topLeft.y * stride) + r->topLeft.x;
-            int uvoff = (r->topLeft.y * stride / 2) + r->topLeft.x;
 
             /* get the output buffer and write it to file */
-            buf = (OutputBuffer *)outArgs->outputID[i];
+            buf = (YUVBuffer *)outArgs->outputID[i];
             DEBUG("pop: %d (%p)", out_cnt, buf);
-            write_output(out_pattern, out_cnt++, buf->buf + yoff,
-                    buf->buf + uvoff + stride * padded_height, stride);
+            write_output(out_pattern, out_cnt++, buf->y, buf->uv, stride);
         }
 
         for (i = 0; outArgs->freeBufID[i]; i++) {
-            buf = (OutputBuffer *)outArgs->freeBufID[i];
-            output_release(buf);
+            buf = (YUVBuffer *)outArgs->freeBufID[i];
+            yuv_release(buf);
         }
 
         if (outArgs->outBufsInUseFlag) {
@@ -481,13 +349,14 @@ out:
     if (params)         dce_free(params);
     if (dynParams)      dce_free(dynParams);
     if (status)         dce_free(status);
-    if (inBufs)         dce_free(inBufs);
-    if (outBufs)        dce_free(outBufs);
+    if (inBufs)         free(inBufs);
+    if (outBufs)        free(outBufs);
     if (inArgs)         dce_free(inArgs);
     if (outArgs)        dce_free(outArgs);
-    if (input)          MemMgr_Free(input);
+    if (input_bo)       omap_bo_del(input_bo);
 
-    output_free();
+    yuv_free();
+    util_deinit();
 
     return 0;
 }

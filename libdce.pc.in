@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: libdce
 Description: distributed codec-engine
 Version: @VERSION@
-Requires: libtimemmgr syslink
+Requires: libdrm libdrm_omap
 Libs: -L${libdir} -ldce
 Cflags: -I${includedir}/dce

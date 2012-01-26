@@ -17,7 +17,7 @@ configure
 .project
 .settings
 .dlls
-dcetest
+dcetestdec
 .executables
 .interfaces
 .libraries*

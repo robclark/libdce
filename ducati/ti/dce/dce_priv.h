@@ -35,11 +35,10 @@
 
 #if defined(CORE0) || defined(CORE1)
 #  define SERVER
+Bool dce_init(void);
 #else
 #  define CLIENT
 #endif
-
-Bool dce_init(void);
 
 #ifdef SERVER
 /* these acquire/release functions should be implemented by the platform,
@@ -67,12 +66,10 @@ void ivahd_init(void);
 
 #ifndef SERVER
 #  define System_printf      printf
-#  define System_flush()     do { } while (0)
 #endif
 
 #define TRACE(lvl, FMT,...)  do if ((lvl) >= TRACE_LEVEL) { \
         System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
-        System_flush(); \
     } while (0)
 
 #define ERROR(FMT,...)   TRACE(3, "error: " FMT, ##__VA_ARGS__)
@@ -90,11 +87,11 @@ void ivahd_init(void);
 #endif
 
 typedef struct {
-    Uint32  size;
+    uint32_t size;
 #ifdef SERVER
-    void *ptr;		/* when used for BIOS heap blocks, just a raw ptr */
+    void *ptr;          /* when used for BIOS heap blocks, just a raw ptr */
 #else
-    Uint32 bo;		/* GEM buffer object handle */
+    struct omap_bo *bo; /* GEM buffer object */
 #endif
 } MemHeader;
 

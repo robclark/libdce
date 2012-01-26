@@ -40,5 +40,16 @@
  */
 void * dce_alloc(int sz);
 void dce_free(void *ptr);
+void dce_set_fd(int fd);
+
+/* avoid some messy stuff in xdc/std.h which pisses of gcc.. */
+#define xdc__ARGTOPTR
+#define xdc__ARGTOFXN
+
+#ifndef SERVER
+struct omap_device * dce_init(void);
+void dce_deinit(struct omap_device *dev);
+#define XDM_MEMTYPE_BO 10
+#endif
 
 #endif /* __DCE_H__ */
