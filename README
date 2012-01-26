@@ -138,11 +138,6 @@ Build rpmsg:
  $XDCROOT/xdc clean -Pr src
  $XDCROOT/xdc -k -P `$XDCROOT/bin/xdcpkg src/ti |  egrep -v -e "/tests|/apps" | xargs`
 
-Build utilities to generate ducati-m3.bin firmware file:
-
- (cd src/utils/elfload && make clean && make)
- (cd src/utils && make clean && make readrprc wrints genbase)
-
 Note: If you change ''rpmsg'', you need to rebuild ''libdce''.
 
 === Build DCE ===
@@ -163,10 +158,7 @@ Build ducati firmware:t://github.com/robclark/libdce.git
  $XDCROOT/xdc clean -Pr ducati
  $XDCROOT/xdc -k -Pr ducati
 
-Generate ducati-m3.bin:
-
- $HOME/ducati/sysbios-rpmsg/src/utils/genrprc ducati/ti/dce/ti_platform_omap4430_core0/debug/dce_sysm3.xem3 ducati/ti/dce/ti_platform_omap4430_core1/debug/dce_appm3.xem3 firmware/ducati-m3.bin
-
+Copy ducati/ti/dce/ti_platform_omap4430_core0/debug/ducati-m3-core0.xem3 to your filesystem at /lib/firmware/ducati-m3-core0.xem3
 
 == Building Linux/A9 side: ==
 

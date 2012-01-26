@@ -53,8 +53,7 @@ Pkg.attrs.exportAll = true;
  */
 
 var testArray = [
-    {name: 'dce_sysm3', sources: ["main", "dce", "iresman_tiledmemory", "ivahd"], config: "dce_core0", copts: "-D CORE0 --gcc", buildPlatforms: ["ti.platform.omap4430.core0"]},
-    {name: 'dce_appm3', sources: ["main", "dce", "iresman_tiledmemory", "ivahd"], config: "dce_core1", copts: "-D CORE1 --gcc", buildPlatforms: ["ti.platform.omap4430.core1"]},
+    {name: 'ducati-m3-core0', sources: ["main", "dce", "iresman_tiledmemory", "ivahd"], config: "dce_core0", copts: "-D CORE0 --gcc", buildPlatforms: ["ti.platform.omap4430.core0"]},
 ];
 
 arguments = ["profile=debug platform=all"];

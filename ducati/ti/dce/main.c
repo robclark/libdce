@@ -53,12 +53,9 @@
 
 
 /* include resource table in core0/sysm3 build, but with a sane data size */
-#ifdef CORE1
-#define IPU_MEM_DATA_SIZE 0x02000000  /* 32MiB */
-#define IPU_MEM_DATA_ADDR 0  /* dynamically assigned */
+#define DATA_SIZE 0x02000000  /* 32MiB */
 typedef unsigned int u32;
 #include <ti/resources/rsc_table.h>
-#endif
 
 
 int main(int argc, char **argv)
@@ -74,7 +71,6 @@ int main(int argc, char **argv)
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
 
-#ifdef CORE1
 //    FCSettings_init();
 //    Diags_setMask(FCSETTINGS_MODNAME"+12345678LEXAIZFS");
 //    CESettings_init();
@@ -82,9 +78,6 @@ int main(int argc, char **argv)
 
     ivahd_init();
     dce_init();
-#else
-    /* hmm */
-#endif
 
     DEBUG("Completed IPC setup and Server Bringup");
 
