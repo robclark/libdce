@@ -151,12 +151,6 @@ static void ivahd_boot(void)
         *icont1_itcm_base_addr++ = icont_boot[i];
         *icont2_itcm_base_addr++ = icont_boot[i];
     }
-
-    sleepms(10);
-
-    /* Release reset for ICONT1 & ICONT2 */
-    RM_IVAHD_RSTCTRL = 0x00000000;
-    sleepms(10);
 }
 
 int ivahd_reset(void * handle, void * iresHandle)
@@ -195,14 +189,6 @@ int ivahd_reset(void * handle, void * iresHandle)
     /* THIS CHECK MAY NOT BE NECESSARY, AND MOST OF ALL GIVEN OUR STATE,
      * MAY NOT BE POSSIBLE
      */
-
-#if 0
-    /* Copy boot code to ICONT1 & ICONT2 memory */
-    for (i = 0; i < DIM(icont_boot); i++) {
-        *icont1_itcm_base_addr++ = icont_boot[i];
-        *icont2_itcm_base_addr++ = icont_boot[i];
-    }
-#endif
 
     /* Ensure that the wake up mode is set to SW_WAKEUP */
     CM_IVAHD_CLKSTCTRL &= 0x00000002;
@@ -334,7 +320,7 @@ void ivahd_init(void)
     /* clear HSDIVDER_CLKOUT2_DIV */
     set_ivahd_opp(0);
 
-    end:
+end:
     return;
 }
 
