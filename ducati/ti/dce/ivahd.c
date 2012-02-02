@@ -250,22 +250,6 @@ void ivahd_release(void)
     Hwi_restore(hwiKey);
 }
 
-
-#define REG32(A)   (*(volatile UInt32 *) (A))
-#define WUGEN_IVAHD_MAILBOX_IRQ_2       (1 << 22)
-#define WUGEN_IVAHD_IRQ2                (1 << 23)
-#define WUGEN_IVAHD_IRQ1                (1 << 24)
-void IpcPower_idle(void);
-
-void platform_idle_processing()
-{
-    /* wrapper slpm_idle_processing to ensure all necessary wakeup events
-     * are enabled
-     */
-    REG32(WUGEN_MEVT0) |= (WUGEN_IVAHD_MAILBOX_IRQ_2 | WUGEN_IVAHD_IRQ2 | WUGEN_IVAHD_IRQ1);
-    IpcPower_idle();
-}
-
 unsigned int SyslinkMemUtils_VirtToPhys(Ptr vaddr);
 
 void *MEMUTILS_getPhysicalAddr(Ptr vaddr)
