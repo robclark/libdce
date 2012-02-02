@@ -48,7 +48,7 @@ Bool dce_init(void);
  */
 void ivahd_acquire(void);
 void ivahd_release(void);
-void ivahd_init(void);
+void ivahd_init(uint32_t chipset_id);
 #endif
 
 #ifndef   DIM

@@ -37,6 +37,7 @@
 #include <xdc/runtime/IHeap.h>
 #include <xdc/runtime/Error.h>
 #include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/hal/Hwi.h>
 #include <ti/pm/IpcPower.h>
 #include <ti/pm/_IpcPower.h>
@@ -55,16 +56,25 @@
 
 #define MEMORYSTATS_DEBUG 1
 
-// XXX different base addr's for OMAP5..
-#ifdef OMAP5
-#define PM_IVAHD_PWRSTCTRL        (*(volatile unsigned int *)0xAAE06F00)
-#define RM_IVAHD_RSTCTRL          (*(volatile unsigned int *)0xAAE06F10)
-#define RM_IVAHD_RSTST            (*(volatile unsigned int *)0xAAE06F14)
-#else
-#define PM_IVAHD_PWRSTCTRL        (*(volatile unsigned int *)0xAA306F00)
-#define RM_IVAHD_RSTCTRL          (*(volatile unsigned int *)0xAA306F10)
-#define RM_IVAHD_RSTST            (*(volatile unsigned int *)0xAA306F14)
-#endif
+static uint32_t ivahd_base = 0;
+static uint32_t ivahd_m5div = 0x1f;
+
+static uint32_t get_ivahd_base(void)
+{
+    if (!ivahd_base) {
+        ERROR("Chipset ID not set!");
+        while (TRUE) {
+            asm(" wfi");
+        }
+    }
+    return ivahd_base;
+}
+
+#define IVAHD_REG(off)            (*(volatile unsigned int *)(get_ivahd_base() + (off)))
+
+#define PM_IVAHD_PWRSTCTRL        IVAHD_REG(0xF00)
+#define RM_IVAHD_RSTCTRL          IVAHD_REG(0xF10)
+#define RM_IVAHD_RSTST            IVAHD_REG(0xF14)
 
 #define CM_IVAHD_CLKSTCTRL        (*(volatile unsigned int *)0xAA008F00)
 #define CM_IVAHD_CLKCTRL          (*(volatile unsigned int *)0xAA008F20)
@@ -102,10 +112,9 @@ const unsigned int icont_boot[] = {
 };
 
 
-// XXX hacky stuff...  there should be a better way than sleep!
 static inline void sleepms(int ms)
 {
-//    Task_sleep(((ms * 1000 + (Clock_tickPeriod - 1)) / Clock_tickPeriod));
+    Task_sleep(((ms * 1000 + (Clock_tickPeriod - 1)) / Clock_tickPeriod));
 }
 
 static void ivahd_boot(void)
@@ -214,9 +223,9 @@ static inline void set_ivahd_opp(int opp)
     unsigned int val;
 
     switch (opp) {
-    case 0:    val = 0x010e;  break;
-    case 50:   val = 0x000e;  break;
-    case 100:  val = 0x0007;  break;
+    case 0:    val = 0x010e;       break;
+    case 50:   val = 0x000e;       break;
+    case 100:  val = ivahd_m5div;  break;
     default: ERROR("invalid opp"); return;
     }
 
@@ -263,7 +272,7 @@ static Bool allocFxn(IALG_MemRec *memTab, Int numRecs);
 static void freeFxn(IALG_MemRec *memTab, Int numRecs);
 
 
-void ivahd_init(void)
+void ivahd_init(uint32_t chipset_id)
 {
     IRES_Status ret;
     IRESMAN_Params rman_params = {
@@ -271,6 +280,28 @@ void ivahd_init(void)
             .allocFxn = allocFxn,
             .freeFxn = freeFxn,
     };
+
+    sleepms(10);
+
+    switch (chipset_id) {
+    case 0x4430:
+        ivahd_base = 0xAA306000;
+        ivahd_m5div = 0x07;
+        break;
+    case 0x4460:
+    case 0x4470:
+        ivahd_base = 0xAA306000;
+        ivahd_m5div = 0x05;
+        break;
+    case 0x5430:
+    case 0x5432:
+        ivahd_base = 0xAAE06000;
+        ivahd_m5div = 0x04;
+        break;
+    default:
+        ERROR("Invalid chipset-id: %x", chipset_id);
+        break;
+    }
 
     CERuntime_init();
 
@@ -297,12 +328,14 @@ void ivahd_init(void)
         goto end;
     }
 
-    DEBUG("RMAN_register() for HDVICP is successful");
+    sleepms(10);
 
     ivahd_boot();
 
     /* clear HSDIVDER_CLKOUT2_DIV */
     set_ivahd_opp(0);
+
+    DEBUG("RMAN_register() for HDVICP is successful");
 
 end:
     return;

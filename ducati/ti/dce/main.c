@@ -63,18 +63,22 @@ int main(int argc, char **argv)
     /* Set up interprocessor notifications */
     System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
 
+    System_printf("%d resources at 0x%x\n",
+                  sizeof(resources) / sizeof(struct resource), resources);
+
     /* Plug vring interrupts, and spin until host handshake complete. */
     VirtQueue_startup();
 
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
 
-    ivahd_init();
     dce_init();
 
     DEBUG("Completed IPC setup and Server Bringup");
 
     BIOS_start();
+
+    DEBUG("Completed BIOS Bringup");
 
     return 0;
 }

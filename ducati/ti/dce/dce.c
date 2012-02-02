@@ -129,10 +129,9 @@ static int connect(void *msg)
         Diags_setMask("ti.ipc.rpmsg.VirtQueue=EXLFS");
     }
 
-    /* TODO: based on chipset id we could setup base addresses so
-     * a single image can work on multiple generations of OMAP.
-     */
+    ivahd_init(req->chipset_id);
     DEBUG("<<");
+
     return 0;
 }
 
