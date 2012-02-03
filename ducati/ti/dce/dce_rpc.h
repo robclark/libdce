@@ -108,6 +108,7 @@ struct dce_rpc_codec_control_rsp {
  * copied inline.
  *
  * Therefore, the variable length data[] section has the format:
+ *    uint8_t reloc[reloc_length * 4];
  *    uint8_t inargs[in_args_length * 4];
  *    uint8_t outbufs[in_bufs_length * 4];
  *    uint8_t inbufs[in_bufs_length * 4];
@@ -116,7 +117,7 @@ struct dce_rpc_codec_process_req {
 	struct dce_rpc_hdr hdr;
 	uint32_t codec_id;
 	uint32_t codec;
-	uint8_t pad;
+	uint8_t reloc_len;      /* length/4 */
 	uint8_t in_args_len;    /* length/4 */
 	uint8_t out_bufs_len;   /* length/4 */
 	uint8_t in_bufs_len;    /* length/4 */

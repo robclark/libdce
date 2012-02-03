@@ -51,6 +51,7 @@
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
 #include <ti/sdo/ce/video2/videnc2.h>
+#include <ti/xdais/dm/xdm.h>
 #include <ti/sysbios/hal/Cache.h>
 
 #include <ti/ipc/rpmsg/MessageQCopy.h>
@@ -83,23 +84,52 @@ enum omap_dce_codec {
 typedef void * (*CreateFxn)(Engine_Handle, String, void *);
 typedef Int32  (*ControlFxn)(void *, int, void *, void *);
 typedef Int32  (*ProcessFxn)(void *, void *, void *, void *, void *);
+typedef Int32  (*RelocFxn)(void *, uint8_t *ptr, uint32_t len);
 typedef void   (*DeleteFxn)(void *);
+
+static int videnc2_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
+static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
 
 static struct {
     CreateFxn  create;
     ControlFxn control;
     ProcessFxn process;
     DeleteFxn  delete;
+    RelocFxn   reloc;   /* handle buffer relocation table */
 } codec_fxns[] = {
         [OMAP_DCE_VIDENC2] = {
                 (CreateFxn)VIDENC2_create,   (ControlFxn)VIDENC2_control,
                 (ProcessFxn)VIDENC2_process, (DeleteFxn)VIDENC2_delete,
+                (RelocFxn)videnc2_reloc,
         },
         [OMAP_DCE_VIDDEC3] = {
                 (CreateFxn)VIDDEC3_create,   (ControlFxn)VIDDEC3_control,
                 (ProcessFxn)VIDDEC3_process, (DeleteFxn)VIDDEC3_delete,
+                (RelocFxn)viddec3_reloc,
         },
 };
+
+static int videnc2_reloc(VIDENC2_Handle handle, uint8_t *ptr, uint32_t len)
+{
+    return -1; // TODO
+}
+
+static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len)
+{
+    static VIDDEC3_DynamicParams params = {
+            .size = sizeof(VIDDEC3_DynamicParams),
+    };
+    VIDDEC3_Status status = {
+            .size = sizeof(VIDDEC3_Status),
+            .data = {
+                    .buf = (XDAS_Int8 *)ptr,
+                    .bufSize = (XDAS_Int32)len,
+            },
+    };
+INFO("status.size=%d", status.size);
+    return VIDDEC3_control(handle, XDM_UPDATEBUFS, &params, &status);
+}
+
 
 /*
  * RPC message handlers
@@ -210,11 +240,12 @@ XDAS_Int32 VIDDEC3_process(VIDDEC3_Handle handle, XDM2_BufDesc *inBufs,
     struct dce_rpc_hdr hdr   -> 4
     codec_id                 -> 4
     codec                    -> 4
-    ... pad/unused ...       -> 1
+    reloc length             -> 1   (length/4)
     inArgs length            -> 1   (length/4)
     outBufs length           -> 1   (length/4)
     inBufs length            -> 1   (length/4)
     VIDDEC3_OutArgs *outArgs -> 4   (pass by pointer)
+    reloc table              -> 12 * nreloc (typically <= 16)
     VIDDEC3_InArgs   inArgs  -> 12  (need inputID from userspace)
     XDM2_BufDesc     outBufs -> 44  (4 + 2 * 20)
     XDM2_BufDesc     inBufs  -> 24  (4 + 1 * 20)
@@ -240,11 +271,12 @@ XDAS_Int32 VIDENC2_process(VIDENC2_Handle handle, IVIDEO2_BufDesc *inBufs,
     struct dce_rpc_hdr hdr   -> 4
     codec_id                 -> 4
     codec                    -> 4
-    ... pad/unused ...       -> 1
+    reloc length             -> 1   (length/4)
     inArgs length            -> 1   (length/4)
     outBufs length           -> 1   (length/4)
     inBufs length            -> 1   (length/4)
     VIDENC2_OutArgs *outArgs -> 4   (pass by pointer)
+    reloc table              -> ???
     VIDENC2_InArgs   inArgs  -> 12  (need inputID from userspace)
     XDM2_BufDesc     outBufs -> 24  (4 + 1 * 20)
     IVIDEO2_BufDesc  inBufs  -> 252
@@ -267,7 +299,10 @@ static int codec_process(void *msg)
     void *out_args = H2P((MemHeader *)req->out_args);
     uint32_t codec_id = req->codec_id;
     uint8_t *ptr = req->data;
-    void *in_args, *out_bufs, *in_bufs;
+    void *reloc, *in_args, *out_bufs, *in_bufs;
+
+    reloc = ptr;
+    ptr += (req->reloc_len * 4);
 
     in_args = ptr;
     ptr += (req->in_args_len * 4);
@@ -278,14 +313,21 @@ static int codec_process(void *msg)
     in_bufs = ptr;
     ptr += (req->in_bufs_len * 4);
 
-    // TODO read reloc table..
-
     DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p, codec_id=%d",
             req->codec, in_bufs, out_bufs, in_args, out_args, codec_id);
-    ivahd_acquire();
-    rsp->result = codec_fxns[codec_id].process(
-            (void *)req->codec, in_bufs, out_bufs, in_args, out_args);
-    ivahd_release();
+
+    rsp->result = codec_fxns[codec_id].reloc(
+            (void *)req->codec, reloc, (req->reloc_len * 4));
+
+    if (rsp->result == IALG_EOK) {
+        ivahd_acquire();
+        rsp->result = codec_fxns[codec_id].process(
+                (void *)req->codec, in_bufs, out_bufs, in_args, out_args);
+        ivahd_release();
+    } else {
+        DEBUG("reloc failed");
+    }
+
     DEBUG("<< ret=%d", rsp->result);
 
     rsp->count = 0;

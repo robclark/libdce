@@ -640,13 +640,17 @@ typedef enum {
                              *              the alg provide them via the
                              *              #XDM_GETSTATUS call.
                              */
-    XDM_SETLATEACQUIREARG = 9 /**< Set an algorithm's 'late acquire' argument.
+    XDM_SETLATEACQUIREARG = 9, /**< Set an algorithm's 'late acquire' argument.
                              *
                              *   @remarks   Handling this command is optional.
                              *
                              *   @remarks   Only algorithms that utilize the
                              *              late acquire IRES feature may
                              *              implement this command.
+                             */
+    XDM_UPDATEBUFS = 10,    /**< Update codec's locked buffer addresses.  This
+                             *   allows for I/O buffers to be relocated in
+                             *   memory between process calls.
                              */
 } XDM_CmdId;
 
