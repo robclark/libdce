@@ -14,7 +14,7 @@ CE_CFLAGS                    = \
                                -I$(top_srcdir)/packages/xdctools \
                                -I$(top_srcdir)/packages/xdais
 
-libdce_la_SOURCES            = dce.c
+libdce_la_SOURCES            = dce.c memsrv.c
 libdce_la_CFLAGS             = -DCLIENT=1 $(WARN_CFLAGS) $(CE_CFLAGS) \
                                $(SYSLINK_CFLAGS) \
                                $(MEMMGR_CFLAGS)

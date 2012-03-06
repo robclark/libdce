@@ -212,8 +212,49 @@ typedef struct {
     Int refs;
     Engine_Handle    engines[10]; /* adjust size per max engines per client */
     ClientCodec   codecs[20];  /* adjust size per max codecs per client */
+    RcmClient_Handle rcm_client;
+    int have_rcm_client;
 } Client;
 static Client clients[10] = {0};  /* adjust size per max-clients .. */
+
+static void dce_register_rcm_client (Client *client)
+{
+    RcmClient_Params params = {0};
+    char name[20];
+    int err;
+
+    RcmClient_init();
+    RcmClient_Params_init(&params);
+
+    snprintf (name, DIM(name), "dce-memsrv-%08x", client->pid);
+
+    params.heapId = 1; // XXX?
+    err = RcmClient_create(name, &params, &client->rcm_client);
+    if (err < 0) {
+       ERROR("RcmClient_create failed: %08x", err);
+       client->have_rcm_client = 0;
+       return;
+    }
+    client->have_rcm_client = 1;
+
+    DEBUG("registering rcm client %d %p", client->pid,
+        &client->rcm_client, err);
+    err = MemMgr_RegisterRCMClient(client->pid, client->rcm_client);
+    if (err < 0) {
+       ERROR("MemMgr_RegisterRCMClient failed: %08x", err);
+       return;
+    }
+    DEBUG("registered rcm client %d %p err %d", client->pid,
+        &client->rcm_client, err);
+}
+
+static void dce_unregister_rcm_client (Client *client)
+{
+    if (client->have_rcm_client) {
+        RcmClient_delete(&client->rcm_client);
+        client->have_rcm_client = 0;
+    }
+}
 
 static inline Client * get_client(Int pid)
 {
@@ -235,6 +276,7 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
 
     c = get_client(pid);
     if (c) {
+        /* we already have a client handle for this pid */
         int i;
         INFO("found mem client: %p refs=%d", c, c->refs);
         c->refs++;
@@ -246,6 +288,7 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
             }
         }
     } else {
+        /* create a new client handle */
         c = get_client(0);
         if (!c) {
             ERROR("too many clients");
@@ -255,6 +298,7 @@ static void dce_register_engine(Int pid, Engine_Handle engine)
         c->pid = pid;
         c->refs = 1;
         c->engines[0] = engine;
+        dce_register_rcm_client (c);
     }
 out:
     // end critical section..
@@ -284,6 +328,7 @@ static void dce_unregister_engine(Int pid, Engine_Handle engine)
         c->refs--;
 
         if (! c->refs) {
+            dce_unregister_rcm_client (c);
             c->pid = 0;
         }
     }
@@ -1279,10 +1324,14 @@ int dce_deinit(void)
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int count = 0;
 
+int memsrv_init (char *name);
+int memsrv_deinit (void);
+
 static void init(void)
 {
     int err;
     Ipc_Config config = {0};
+    char name[20];
 
     pthread_mutex_lock(&mutex);
 
@@ -1296,6 +1345,10 @@ static void init(void)
     DEBUG("Ipc_setup() -> %08x", err);
 
     pid = getpid();
+
+    snprintf (name, DIM(name), "dce-memsrv-%08x", pid);
+    err = memsrv_init(name);
+    DEBUG("memsrv_init() -> %08x", err);
 
     err = dce_init();
     DEBUG("dce_init() -> %08x", err);
@@ -1318,6 +1371,9 @@ static void deinit(void)
 
     err = dce_deinit();
     DEBUG("dce_deinit() -> %08x", err);
+
+    err = memsrv_deinit();
+    DEBUG("memsrv_deinit() -> %08x", err);
 
     err = Ipc_destroy();
     DEBUG("Ipc_destroy() -> %08x", err);
