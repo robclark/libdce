@@ -96,9 +96,17 @@ static RcmServer_Handle rcmServerHandle;
 
 typedef struct {
     UInt    pixelFormat;
+#ifdef MEMMGR_1_4
     UInt    width;
     UInt    height;
     UInt    length;
+#else
+    union {
+      UInt16  width;
+      UInt16  height;
+      UInt    length;
+    };
+#endif
     UInt    stride;
     Ptr     ptr;
     UInt  * reserved;
