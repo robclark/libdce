@@ -37,9 +37,11 @@
 
 typedef struct {
     IVIDENC2_Params videnc2Params;
-    XDAS_Int8 reserved[152];
+    XDAS_Int8 reserved[144];
+    XDAS_Int32 IDRFrameInterval;
+    XDAS_Int8 reserved1[4];
     XDAS_Int32  maxIntraFrameInterval;
-    XDAS_Int8 reserved1[28];
+    XDAS_Int8 reserved2[28];
 } IH264ENC_Params;
 
 #endif
