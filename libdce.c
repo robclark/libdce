@@ -68,6 +68,7 @@ static int ioctl_base;
 uint32_t dce_debug = 3;
 
 void dce_set_fd(int dce_fd) { fd = dce_fd; }
+int dce_get_fd () { return fd; }
 
 /*
  * Memory allocation/mapping
