@@ -51,6 +51,7 @@ int dce_get_fd();
 struct omap_device * dce_init(void);
 void dce_deinit(struct omap_device *dev);
 #define XDM_MEMTYPE_BO 10
+#define XDM_MEMTYPE_BO_OFFSET 11
 #endif
 
 #endif /* __DCE_H__ */
