@@ -55,6 +55,7 @@
 #include <ti/sdo/fc/rman/rman.h>
 #include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
 #include <ti/resources/IpcMemory.h>
+#include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
 
 #define MEMORYSTATS_DEBUG 1
 
