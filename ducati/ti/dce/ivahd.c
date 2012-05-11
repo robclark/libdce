@@ -53,6 +53,8 @@
 #include <ti/sdo/fc/ires/hdvicp/ires_hdvicp2.h>
 #include <ti/sdo/fc/ires/tiledmemory/iresman_tiledmemory.h>
 #include <ti/sdo/fc/rman/rman.h>
+#include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
+
 
 #define MEMORYSTATS_DEBUG 1
 
@@ -302,6 +304,11 @@ void ivahd_init(uint32_t chipset_id)
         ERROR("Invalid chipset-id: %x", chipset_id);
         break;
     }
+
+    DEBUG("ivahd_base=%08x, ivahd_m5div=%x", ivahd_base, ivahd_m5div);
+
+    /* bit of a hack.. not sure if there is a better way for this: */
+    HDVICP2_PARAMS.resetControlAddress[0] = ivahd_base + 0xF10;
 
     CERuntime_init();
 
