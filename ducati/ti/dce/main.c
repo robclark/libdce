@@ -53,7 +53,6 @@
 /* include resource table in core0/sysm3 build, but with a sane data size */
 #define DATA_SIZE 0x02000000  /* 32MiB */
 typedef unsigned int u32;
-#include <ti/resources/rsc_table.h>
 
 
 int main(int argc, char **argv)
@@ -62,9 +61,6 @@ int main(int argc, char **argv)
 
     /* Set up interprocessor notifications */
     System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
-
-    System_printf("%d resources at 0x%x\n",
-                  sizeof(resources) / sizeof(struct resource), resources);
 
     /* Plug vring interrupts, and spin until host handshake complete. */
     VirtQueue_startup();
