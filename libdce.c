@@ -404,7 +404,7 @@ static int init(void)
 
     pthread_mutex_lock(&mutex);
 
-    if (count > 0) {
+    if (count++ > 0) {
         goto out;
     }
 
@@ -496,8 +496,6 @@ no_x11:
         ioctl_base = req.ioctl_base;
 
         dev = omap_device_new(fd);
-
-        count++;
     }
 
 out:
@@ -509,9 +507,7 @@ static void deinit(void)
 {
     pthread_mutex_lock(&mutex);
 
-    count--;
-
-    if (count > 0) {
+    if (--count > 0) {
         goto out;
     }
 
