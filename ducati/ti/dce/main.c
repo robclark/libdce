@@ -62,9 +62,6 @@ int main(int argc, char **argv)
     /* Set up interprocessor notifications */
     System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
 
-    /* Plug vring interrupts, and spin until host handshake complete. */
-    VirtQueue_startup();
-
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
 
