@@ -316,8 +316,11 @@ static int codec_process(void *msg)
     DEBUG(">> codec=%p, inBufs=%p, outBufs=%p, inArgs=%p, outArgs=%p, codec_id=%d",
             req->codec, in_bufs, out_bufs, in_args, out_args, codec_id);
 
-    rsp->result = codec_fxns[codec_id].reloc(
-            (void *)req->codec, reloc, (req->reloc_len * 4));
+    rsp->result = IALG_EOK;
+
+    if (req->reloc_len)
+        rsp->result = codec_fxns[codec_id].reloc(
+                (void *)req->codec, reloc, (req->reloc_len * 4));
 
     if (rsp->result == IALG_EOK) {
         ivahd_acquire();
