@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Texas Instruments Incorporated
+ * Copyright (c) 2011-2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,48 +30,42 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <xdc/std.h>
-#include <xdc/cfg/global.h>
-#include <xdc/runtime/System.h>
-#include <xdc/runtime/Diags.h>
+/*
+ *  ======== package.xs ========
+ *
+ */
 
-#include <ti/ipc/MultiProc.h>
-#include <ti/sysbios/BIOS.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/ipc/rpmsg/VirtQueue.h>
-
-#include <ti/grcm/RcmTypes.h>
-#include <ti/grcm/RcmServer.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include "dce_priv.h"
-
-
-/* include resource table in core0/sysm3 build, but with a sane data size */
-#define DATA_SIZE 0x02000000  /* 32MiB */
-typedef unsigned int u32;
-
-
-int main(int argc, char **argv)
+/*
+ *  ======== getLibs ========
+ */
+function getLibs(prog)
 {
-    UInt16 hostId;
+    var name = this.$name + ".a" + prog.build.target.suffix;
+    var lib = "";
 
-    /* Set up interprocessor notifications */
-    System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
+    lib= "lib/" + this.profile + "/" + name;
 
-    hostId = MultiProc_getId("HOST");
-    MessageQCopy_init(hostId);
+    if (java.io.File(this.packageBase + lib).exists()) {
+        return lib;
+    }
 
-    dce_init();
+    /* all ti.targets return whole_program_debug library by default */
+    if (prog.build.target.$name.match(/^ti\.targets\./)) {
+        lib = "lib/" + "whole_program_debug/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
+    }
 
-    DEBUG("Completed IPC setup and Server Bringup");
+    /* all other targets, return release library by default */
+    else {
+        lib = "lib/" + "release/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
+    }
 
-    BIOS_start();
-
-    DEBUG("Completed BIOS Bringup");
-
-    return 0;
+    /* could not find any library, throw exception */
+    throw Error("Library not found: " + name);
 }
+

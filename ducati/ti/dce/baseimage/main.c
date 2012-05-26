@@ -29,50 +29,49 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- *  ======== package.bld ========
- */
-/* explicit references to global objects */
-var Build = xdc.useModule('xdc.bld.BuildEnvironment');
-var Pkg = xdc.useModule('xdc.bld.PackageContents');
 
-/* clean lib folder */
-Pkg.generatedFiles.$add("lib/");
-Pkg.libDir = "package/";
+#include <xdc/std.h>
+#include <xdc/cfg/global.h>
+#include <xdc/runtime/System.h>
+#include <xdc/runtime/Diags.h>
 
-/*
- *  Export everything necessary to build this package with (almost) no
- *  generated files.
- */
-Pkg.attrs.exportAll = true;
+#include <ti/ipc/MultiProc.h>
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/ipc/rpmsg/VirtQueue.h>
 
-/* Set libs parameters */
-var lib = {
- name: "ti.dce",
- sources: [ "dce", "ivahd" ],
- libAttrs: {
-    copts: "-D CORE0 --gcc",
-    }
-};
+#include <ti/grcm/RcmTypes.h>
+#include <ti/grcm/RcmServer.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#include <ti/dce/dce_priv.h>
 
 
-/* ==== loop over all targets in build array ==== */
-for (var j = 0; j < Build.targets.length; j++) {
-    var targ = Build.targets[j];
+/* include resource table in core0/sysm3 build, but with a sane data size */
+#define DATA_SIZE 0x02000000  /* 32MiB */
+typedef unsigned int u32;
 
-    /* ==== loop over all profiles ==== */
-    for (var profile in targ.profiles) {
 
-        /* name = lib/profile/name.a+suffix */
-        var name = "lib/" + profile + "/" + lib.name;
-        var libAttrs = "libAttrs" in lib ? lib.libAttrs : {};
-        /* must set profile explicitly */
-        libAttrs.profile = profile;
+int main(int argc, char **argv)
+{
+    UInt16 hostId;
 
-        /* build the library */
-        var library = Pkg.addLibrary(name, targ, libAttrs);
+    /* Set up interprocessor notifications */
+    System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
 
-        /* add the source files */
-        library.addObjects(lib.sources);
-    }
- }
+    hostId = MultiProc_getId("HOST");
+    MessageQCopy_init(hostId);
+
+    dce_init();
+
+    DEBUG("Completed IPC setup and Server Bringup");
+
+    BIOS_start();
+
+    DEBUG("Completed BIOS Bringup");
+
+    return 0;
+}

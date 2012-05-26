@@ -30,49 +30,14 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- *  ======== package.bld ========
+ *  ======== package.xdc ========
+ *
  */
-/* explicit references to global objects */
-var Build = xdc.useModule('xdc.bld.BuildEnvironment');
-var Pkg = xdc.useModule('xdc.bld.PackageContents');
+requires ti.dce;
 
-/* clean lib folder */
-Pkg.generatedFiles.$add("lib/");
-Pkg.libDir = "package/";
 
-/*
- *  Export everything necessary to build this package with (almost) no
- *  generated files.
+/*!
+ *  ======== ti.dce.baseimage ========
  */
-Pkg.attrs.exportAll = true;
-
-/* Set libs parameters */
-var lib = {
- name: "ti.dce",
- sources: [ "dce", "ivahd" ],
- libAttrs: {
-    copts: "-D CORE0 --gcc",
-    }
-};
-
-
-/* ==== loop over all targets in build array ==== */
-for (var j = 0; j < Build.targets.length; j++) {
-    var targ = Build.targets[j];
-
-    /* ==== loop over all profiles ==== */
-    for (var profile in targ.profiles) {
-
-        /* name = lib/profile/name.a+suffix */
-        var name = "lib/" + profile + "/" + lib.name;
-        var libAttrs = "libAttrs" in lib ? lib.libAttrs : {};
-        /* must set profile explicitly */
-        libAttrs.profile = profile;
-
-        /* build the library */
-        var library = Pkg.addLibrary(name, targ, libAttrs);
-
-        /* add the source files */
-        library.addObjects(lib.sources);
-    }
- }
+package ti.dce.baseimage [1,0,0,0] {
+}
