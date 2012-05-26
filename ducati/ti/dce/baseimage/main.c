@@ -49,12 +49,6 @@
 
 #include <ti/dce/dce_priv.h>
 
-
-/* include resource table in core0/sysm3 build, but with a sane data size */
-#define DATA_SIZE 0x02000000  /* 32MiB */
-typedef unsigned int u32;
-
-
 int main(int argc, char **argv)
 {
     UInt16 hostId;
