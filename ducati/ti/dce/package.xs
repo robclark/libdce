@@ -35,6 +35,20 @@
  *
  */
 
+
+/*
+ *  ======== init ========
+ */
+function init()
+{
+    /*
+     * install a SYS/BIOS startup function
+     * it will be called during BIOS_start()
+     */
+    var BIOS = xdc.useModule('ti.sysbios.BIOS');
+    BIOS.addUserStartupFunction('&dce_init');
+}
+
 /*
  *  ======== getLibs ========
  */

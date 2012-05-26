@@ -47,8 +47,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <ti/dce/dce_priv.h>
-
 int main(int argc, char **argv)
 {
     UInt16 hostId;
@@ -59,13 +57,7 @@ int main(int argc, char **argv)
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
 
-    dce_init();
-
-    DEBUG("Completed IPC setup and Server Bringup");
-
     BIOS_start();
-
-    DEBUG("Completed BIOS Bringup");
 
     return 0;
 }
