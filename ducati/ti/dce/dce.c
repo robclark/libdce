@@ -39,6 +39,8 @@
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/System.h>
 #include <xdc/runtime/Diags.h>
+#include <xdc/runtime/Memory.h>
+#include <xdc/runtime/IHeap.h>
 #include <ti/sdo/fc/global/FCSettings.h>
 #include <ti/sdo/ce/global/CESettings.h>
 #include <xdc/runtime/knl/Thread.h>
@@ -64,6 +66,8 @@
 #define DCE_PORT 42     /* so long, and thanks for all the fish */
 
 uint32_t dce_debug = 1;
+
+#define MEMORYSTATS_DEBUG
 
 /* AFAIK both TILER and heap are cached on ducati side.. so from wherever a9
  * allocates, we need to deal with cache to avoid coherency issues..
@@ -190,6 +194,9 @@ static int engine_close(void *msg)
 
 static int codec_create(void *msg)
 {
+#ifdef MEMORYSTATS_DEBUG
+    Memory_Stats stats;
+#endif
     struct dce_rpc_codec_create_req *req = msg;
     struct dce_rpc_codec_create_rsp *rsp = msg;
     void *sparams = H2P((MemHeader *)req->sparams);
@@ -201,6 +208,12 @@ static int codec_create(void *msg)
             (Engine_Handle)req->engine, req->name, sparams);
     dce_clean(sparams);
     DEBUG("<< codec=%08x", rsp->codec);
+
+#ifdef MEMORYSTATS_DEBUG
+    Memory_getStats(NULL, &stats);
+    INFO("Total: %d\tFree: %d\tLargest: %d", stats.totalSize,
+         stats.totalFreeSize, stats.largestFreeSize);
+#endif
 
     return sizeof(*rsp);
 }
@@ -362,11 +375,20 @@ static int codec_process(void *msg)
 
 static int codec_delete(void *msg)
 {
+#ifdef MEMORYSTATS_DEBUG
+    Memory_Stats stats;
+#endif
     struct dce_rpc_codec_delete_req *req = msg;
 
     DEBUG(">> codec=%08x, codec_id=%d", req->codec, req->codec_id);
     codec_fxns[req->codec_id].delete((void *)req->codec);
     DEBUG("<<");
+
+#ifdef MEMORYSTATS_DEBUG
+    Memory_getStats(NULL, &stats);
+    INFO("Total: %d\tFree: %d\tLargest: %d", stats.totalSize,
+         stats.totalFreeSize, stats.largestFreeSize);
+#endif
 
     return 0;
 }

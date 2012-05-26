@@ -57,7 +57,7 @@
 #include <ti/resources/IpcMemory.h>
 #include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
 
-#define MEMORYSTATS_DEBUG 1
+//#define MEMORYSTATS_DEBUG
 
 static uint32_t ivahd_base = 0;
 static uint32_t ivahd_m5div = 0x1f;
