@@ -46,6 +46,8 @@ Install Code Generation Tools (CGT) from:
 
 * https://www-a.ti.com/downloads/sds_support/CodeGenerationTools.htm
 
+See http://software-dl.ti.com/dsps/dsps_registered_sw/sdo_ccstudio/codegen/TMS470/4.9.5/exports/ti_cgt_tms470_4.9.5_setup_linux_x86.bin
+
 Install to ''$HOME/ducati/ti_cgt_tms470_<version>''
 
 === Install XDC tools ===
