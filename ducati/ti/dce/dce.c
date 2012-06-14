@@ -91,6 +91,8 @@ typedef Int32  (*ProcessFxn)(void *, void *, void *, void *, void *);
 typedef Int32  (*RelocFxn)(void *, uint8_t *ptr, uint32_t len);
 typedef void   (*DeleteFxn)(void *);
 
+static VIDENC2_Handle videnc2_create(Engine_Handle engine, String name, VIDENC2_Params *params);
+static VIDDEC3_Handle viddec3_create(Engine_Handle engine, String name, VIDDEC3_Params *params);
 static int videnc2_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
 static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
 
@@ -102,16 +104,96 @@ static struct {
     RelocFxn   reloc;   /* handle buffer relocation table */
 } codec_fxns[] = {
         [OMAP_DCE_VIDENC2] = {
-                (CreateFxn)VIDENC2_create,   (ControlFxn)VIDENC2_control,
+                (CreateFxn)videnc2_create,   (ControlFxn)VIDENC2_control,
                 (ProcessFxn)VIDENC2_process, (DeleteFxn)VIDENC2_delete,
                 (RelocFxn)videnc2_reloc,
         },
         [OMAP_DCE_VIDDEC3] = {
-                (CreateFxn)VIDDEC3_create,   (ControlFxn)VIDDEC3_control,
+                (CreateFxn)viddec3_create,   (ControlFxn)VIDDEC3_control,
                 (ProcessFxn)VIDDEC3_process, (DeleteFxn)VIDDEC3_delete,
                 (RelocFxn)viddec3_reloc,
         },
 };
+
+/* Static version string buffer.
+ * Note: codec version can be large. For example, h264vdec needs more than
+ * 58 characters, or the query will fail. */
+#define VERSION_SIZE 128
+static char version_buffer[VERSION_SIZE];
+
+static void get_videnc2_version(VIDENC2_Handle h, char *buffer, unsigned size)
+{
+    VIDENC2_DynamicParams params = {
+            .size = sizeof(VIDENC2_DynamicParams),
+    };
+
+    VIDENC2_Status status = {
+            .size = sizeof(VIDENC2_Status),
+            .data = {
+                    .buf = (XDAS_Int8 *)buffer,
+                    .bufSize = (XDAS_Int32)size,
+            },
+    };
+
+    XDAS_Int32 s;
+
+    memset(buffer, 0, size);
+    s = VIDENC2_control(h, XDM_GETVERSION, &params, &status);
+
+    if (s != VIDENC2_EOK)
+        snprintf(buffer, size, "<unknown version (rc = %x)>", s);
+}
+
+// VIDENC2_create wrapper, to display version string in the trace.
+static VIDENC2_Handle videnc2_create(Engine_Handle engine, String name, VIDENC2_Params *params)
+{
+    VIDENC2_Handle h;
+    h = VIDENC2_create(engine, name, params);
+
+    if (h) {
+        get_videnc2_version(h, version_buffer, VERSION_SIZE);
+        INFO("Created videnc2 %s: version %s", name, version_buffer);
+    }
+
+    return h;
+}
+
+static void get_viddec3_version(VIDDEC3_Handle h, char *buffer, unsigned size)
+{
+    VIDDEC3_DynamicParams params = {
+            .size = sizeof(VIDDEC3_DynamicParams),
+    };
+
+    VIDDEC3_Status status = {
+            .size = sizeof(VIDDEC3_Status),
+            .data = {
+                    .buf = (XDAS_Int8 *)buffer,
+                    .bufSize = (XDAS_Int32)size,
+            },
+    };
+
+    XDAS_Int32 s;
+
+    memset(buffer, 0, size);
+    s = VIDDEC3_control(h, XDM_GETVERSION, &params, &status);
+
+    if (s != VIDDEC3_EOK)
+        snprintf(buffer, size, "<unknown version (rc = %x)>", s);
+}
+
+// VIDDEC3_create wrapper, to display version string in the trace.
+static VIDDEC3_Handle viddec3_create(Engine_Handle engine, String name, VIDDEC3_Params *params)
+{
+    VIDDEC3_Handle h;
+    h = VIDDEC3_create(engine, name, params);
+
+    if (h) {
+        get_viddec3_version(h, version_buffer, VERSION_SIZE);
+        INFO("Created viddec3 %s: version %s", name, version_buffer);
+    }
+
+    return h;
+}
 
 static int videnc2_reloc(VIDENC2_Handle handle, uint8_t *ptr, uint32_t len)
 {
