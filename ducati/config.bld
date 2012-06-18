@@ -84,8 +84,11 @@ var smpPlatforms = [
                     ];
 
 
-M3.platforms = regPlatforms;
-//M3.platforms = smpPlatforms;
+if (java.lang.System.getenv("FOR_SMP") == '1') {
+    M3.platforms = smpPlatforms;
+} else {
+    M3.platforms = regPlatforms;
+}
 
 M3.platform = M3.platforms[0];
 
