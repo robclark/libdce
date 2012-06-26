@@ -32,13 +32,9 @@
 /*
  *  ======== package.bld ========
  */
-/* explicit references to global objects */
-var Build = xdc.useModule('xdc.bld.BuildEnvironment');
-var Pkg = xdc.useModule('xdc.bld.PackageContents');
 
-/* clean lib folder */
-Pkg.generatedFiles.$add("lib/");
-Pkg.libDir = "package/";
+var testBld = xdc.loadCapsule("ti/sdo/ipc/build/test.bld");
+var commonBld = xdc.loadCapsule("ti/sdo/ipc/build/common.bld");
 
 /*
  *  Export everything necessary to build this package with (almost) no
@@ -46,33 +42,21 @@ Pkg.libDir = "package/";
  */
 Pkg.attrs.exportAll = true;
 
-/* Set libs parameters */
-var lib = {
- name: "ti.dce",
- sources: [ "dce", "ivahd" ],
- libAttrs: {
-    copts: "-D CORE0 --gcc",
-    }
-};
+/*
+ *  ======== testArray ========
+ *
+ *  Example:
+ *    var testArray = [
+ *        {name: Test1},
+ *        {name: Test2, sources: ["Test"], config: "Test", refOutput: "Test", timeout: "15", buildTargets: ["C64", "C28_large"]}
+ *    ];
+ */
 
+var testArray = [
+    {name: 'ducati-m3-core0', sources: ["main", "ping_tasks", "iresman_tiledmemory"], config: "dce_core0", copts: "-D CORE0 --gcc", buildPlatforms: ["ti.platform.omap4430.core0"]},
+    {name: 'ducati-m3-ipu', sources: ["main", "ping_tasks", "iresman_tiledmemory"], config: "dce_ipu", copts: "-D IPU --gcc", buildPlatforms: ["ti.platform.omap4430.ipu"]},
+];
 
-/* ==== loop over all targets in build array ==== */
-for (var j = 0; j < Build.targets.length; j++) {
-    var targ = Build.targets[j];
+arguments = ["profile=debug platform=all"];
 
-    /* ==== loop over all profiles ==== */
-    for (var profile in targ.profiles) {
-
-        /* name = lib/profile/name.a+suffix */
-        var name = "lib/" + profile + "/" + lib.name;
-        var libAttrs = "libAttrs" in lib ? lib.libAttrs : {};
-        /* must set profile explicitly */
-        libAttrs.profile = profile;
-
-        /* build the library */
-        var library = Pkg.addLibrary(name, targ, libAttrs);
-
-        /* add the source files */
-        library.addObjects(lib.sources);
-    }
- }
+testBld.buildTests(testArray, arguments);

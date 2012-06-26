@@ -68,6 +68,7 @@ static int ioctl_base;
 uint32_t dce_debug = 3;
 
 void dce_set_fd(int dce_fd) { fd = dce_fd; }
+int dce_get_fd () { return fd; }
 
 /*
  * Memory allocation/mapping
@@ -403,7 +404,7 @@ static int init(void)
 
     pthread_mutex_lock(&mutex);
 
-    if (count > 0) {
+    if (count++ > 0) {
         goto out;
     }
 
@@ -495,8 +496,6 @@ no_x11:
         ioctl_base = req.ioctl_base;
 
         dev = omap_device_new(fd);
-
-        count++;
     }
 
 out:
@@ -508,9 +507,7 @@ static void deinit(void)
 {
     pthread_mutex_lock(&mutex);
 
-    count--;
-
-    if (count > 0) {
+    if (--count > 0) {
         goto out;
     }
 

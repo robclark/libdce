@@ -54,9 +54,10 @@
 #include <ti/sdo/fc/ires/tiledmemory/iresman_tiledmemory.h>
 #include <ti/sdo/fc/rman/rman.h>
 #include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
+#include <ti/resources/IpcMemory.h>
+#include <ti/sdo/fc/ires/hdvicp/hdvicp2.h>
 
-
-#define MEMORYSTATS_DEBUG 1
+//#define MEMORYSTATS_DEBUG
 
 static uint32_t ivahd_base = 0;
 static uint32_t ivahd_m5div = 0x1f;
@@ -261,7 +262,15 @@ void ivahd_release(void)
     Hwi_restore(hwiKey);
 }
 
-unsigned int SyslinkMemUtils_VirtToPhys(Ptr vaddr);
+static unsigned int SyslinkMemUtils_VirtToPhys(Ptr Addr)
+{
+    unsigned int    pa;
+
+    if( !Addr || IpcMemory_virtToPhys((unsigned int) Addr, &pa)) {
+        return (0);
+    }
+    return (pa);
+}
 
 void *MEMUTILS_getPhysicalAddr(Ptr vaddr)
 {

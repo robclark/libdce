@@ -44,7 +44,7 @@
 #include <ti/sdo/fc/ires/iresman.h>
 #include <ti/sdo/fc/ires/tiledmemory/ires_tiledmemory.h>
 
-#include "dce_priv.h"
+#include <ti/dce/dce_priv.h>
 
 
 static IRESMAN_PersistentAllocFxn * allocFxn;   /* Memory alloc function */

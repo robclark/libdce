@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Texas Instruments Incorporated
+ * Copyright (c) 2011-2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,50 +29,57 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- *  ======== package.bld ========
- */
-/* explicit references to global objects */
-var Build = xdc.useModule('xdc.bld.BuildEnvironment');
-var Pkg = xdc.useModule('xdc.bld.PackageContents');
-
-/* clean lib folder */
-Pkg.generatedFiles.$add("lib/");
-Pkg.libDir = "package/";
 
 /*
- *  Export everything necessary to build this package with (almost) no
- *  generated files.
+ *  ======== package.xs ========
+ *
  */
-Pkg.attrs.exportAll = true;
 
-/* Set libs parameters */
-var lib = {
- name: "ti.dce",
- sources: [ "dce", "ivahd" ],
- libAttrs: {
-    copts: "-D CORE0 --gcc",
+
+/*
+ *  ======== init ========
+ */
+function init()
+{
+    /*
+     * install a SYS/BIOS startup function
+     * it will be called during BIOS_start()
+     */
+    var BIOS = xdc.useModule('ti.sysbios.BIOS');
+    BIOS.addUserStartupFunction('&dce_init');
+}
+
+/*
+ *  ======== getLibs ========
+ */
+function getLibs(prog)
+{
+    var name = this.$name + ".a" + prog.build.target.suffix;
+    var lib = "";
+
+    lib= "lib/" + this.profile + "/" + name;
+
+    if (java.io.File(this.packageBase + lib).exists()) {
+        return lib;
     }
-};
 
-
-/* ==== loop over all targets in build array ==== */
-for (var j = 0; j < Build.targets.length; j++) {
-    var targ = Build.targets[j];
-
-    /* ==== loop over all profiles ==== */
-    for (var profile in targ.profiles) {
-
-        /* name = lib/profile/name.a+suffix */
-        var name = "lib/" + profile + "/" + lib.name;
-        var libAttrs = "libAttrs" in lib ? lib.libAttrs : {};
-        /* must set profile explicitly */
-        libAttrs.profile = profile;
-
-        /* build the library */
-        var library = Pkg.addLibrary(name, targ, libAttrs);
-
-        /* add the source files */
-        library.addObjects(lib.sources);
+    /* all ti.targets return whole_program_debug library by default */
+    if (prog.build.target.$name.match(/^ti\.targets\./)) {
+        lib = "lib/" + "whole_program_debug/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
     }
- }
+
+    /* all other targets, return release library by default */
+    else {
+        lib = "lib/" + "release/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
+    }
+
+    /* could not find any library, throw exception */
+    throw Error("Library not found: " + name);
+}
+
