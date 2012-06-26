@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2011, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,15 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef __DCE_H__
-#define __DCE_H__
-
-/* other than the codec-engine API, you must use the following two functions
- * to allocate the data structures passed to codec-engine APIs (other than the
- * raw input/output buffers which should be passed as physical addresses in
- * TILER space (SSPtr))
+/*
+ *  ======== package.xdc ========
+ *
  */
-void * dce_alloc(int sz);
-void dce_free(void *ptr);
-void dce_set_fd(int fd);
-int dce_get_fd();
+requires ti.dce;
 
-/* avoid some messy stuff in xdc/std.h which pisses of gcc.. */
-#define xdc__ARGTOPTR
-#define xdc__ARGTOFXN
 
-#ifndef SERVER
-struct omap_device * dce_init(void);
-void dce_deinit(struct omap_device *dev);
-#define XDM_MEMTYPE_BO 10
-#define XDM_MEMTYPE_BO_OFFSET 11
-#endif
-
-#endif /* __DCE_H__ */
+/*!
+ *  ======== ti.dce.baseimage ========
+ */
+package ti.dce.baseimage [1,0,0,0] {
+}

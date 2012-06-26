@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2011-2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,28 +30,56 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DCE_H__
-#define __DCE_H__
-
-/* other than the codec-engine API, you must use the following two functions
- * to allocate the data structures passed to codec-engine APIs (other than the
- * raw input/output buffers which should be passed as physical addresses in
- * TILER space (SSPtr))
+/*
+ *  ======== package.xs ========
+ *
  */
-void * dce_alloc(int sz);
-void dce_free(void *ptr);
-void dce_set_fd(int fd);
-int dce_get_fd();
 
-/* avoid some messy stuff in xdc/std.h which pisses of gcc.. */
-#define xdc__ARGTOPTR
-#define xdc__ARGTOFXN
 
-#ifndef SERVER
-struct omap_device * dce_init(void);
-void dce_deinit(struct omap_device *dev);
-#define XDM_MEMTYPE_BO 10
-#define XDM_MEMTYPE_BO_OFFSET 11
-#endif
+/*
+ *  ======== init ========
+ */
+function init()
+{
+    /*
+     * install a SYS/BIOS startup function
+     * it will be called during BIOS_start()
+     */
+    var BIOS = xdc.useModule('ti.sysbios.BIOS');
+    BIOS.addUserStartupFunction('&dce_init');
+}
 
-#endif /* __DCE_H__ */
+/*
+ *  ======== getLibs ========
+ */
+function getLibs(prog)
+{
+    var name = this.$name + ".a" + prog.build.target.suffix;
+    var lib = "";
+
+    lib= "lib/" + this.profile + "/" + name;
+
+    if (java.io.File(this.packageBase + lib).exists()) {
+        return lib;
+    }
+
+    /* all ti.targets return whole_program_debug library by default */
+    if (prog.build.target.$name.match(/^ti\.targets\./)) {
+        lib = "lib/" + "whole_program_debug/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
+    }
+
+    /* all other targets, return release library by default */
+    else {
+        lib = "lib/" + "release/" + name;
+        if (java.io.File(this.packageBase + lib).exists()) {
+            return lib;
+        }
+    }
+
+    /* could not find any library, throw exception */
+    throw Error("Library not found: " + name);
+}
+

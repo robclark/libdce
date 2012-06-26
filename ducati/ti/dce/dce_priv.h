@@ -33,12 +33,12 @@
 #ifndef __DCE_PRIV_H__
 #define __DCE_PRIV_H__
 
-#if !(defined(CLIENT) || defined(SERVER))
-#  error "Must define either CLIENT or SERVER"
+#if defined(CORE0) || defined(CORE1)
+#  define SERVER
+Bool dce_init(void);
+#else
+#  define CLIENT
 #endif
-
-int dce_init(void);
-int dce_deinit(void);
 
 #ifdef SERVER
 /* these acquire/release functions should be implemented by the platform,
@@ -48,6 +48,7 @@ int dce_deinit(void);
  */
 void ivahd_acquire(void);
 void ivahd_release(void);
+void ivahd_init(uint32_t chipset_id);
 #endif
 
 #ifndef   DIM
@@ -55,26 +56,54 @@ void ivahd_release(void);
 #endif
 
 /* set desired trace level:
- *   3 - error
- *   2 - error, info
- *   1 - error, info, debug  (very verbose)
+ *   4 - error
+ *   3 - error, info
+ *   2 - error, info, debug  (very verbose)
+ *   1 - error, info, debug, verbose (very very verbose)
  */
-#ifndef TRACE_LEVEL
-#  define TRACE_LEVEL 2
+#ifndef DCE_DEBUG
+#  define DCE_DEBUG 1
 #endif
 
 #ifndef SERVER
 #  define System_printf      printf
-#  define System_flush()     do { } while (0)
 #endif
 
-#define TRACE(lvl, FMT,...)  do if ((lvl) >= TRACE_LEVEL) { \
+extern uint32_t dce_debug;
+
+#define TRACE(lvl, FMT,...)  do if ((lvl) >= dce_debug) { \
         System_printf("%s:%d:\t%s\t" FMT "\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
-        System_flush(); \
     } while (0)
 
-#define ERROR(FMT,...)   TRACE(3, "error: " FMT, ##__VA_ARGS__)
-#define INFO(FMT,...)    TRACE(2, "info: " FMT, ##__VA_ARGS__)
-#define DEBUG(FMT,...)   TRACE(1, "debug: " FMT, ##__VA_ARGS__)
+#define ERROR(FMT,...)   TRACE(4, "error: " FMT, ##__VA_ARGS__)
+#define INFO(FMT,...)    TRACE(3, "info: " FMT, ##__VA_ARGS__)
+#define DEBUG(FMT,...)   TRACE(2, "debug: " FMT, ##__VA_ARGS__)
+#define VERB(FMT,...)    TRACE(1, "verb: " FMT, ##__VA_ARGS__)
+
+#ifndef TRUE
+#  define TRUE 1
+#endif
+#ifndef FALSE
+#  define FALSE 0
+#endif
+#ifndef NULL
+#  define NULL ((void *)0)
+#endif
+
+typedef struct {
+    uint32_t size;
+#ifdef SERVER
+    void *ptr;          /* when used for BIOS heap blocks, just a raw ptr */
+#else
+    struct omap_bo *bo; /* GEM buffer object */
+#endif
+} MemHeader;
+
+#define P2H(p) (&(((MemHeader *)(p))[-1]))
+#define H2P(h) ((void *)&(h)[1])
+
+#ifndef __packed
+#  define __packed __attribute__((packed))
+#endif
 
 #endif /* __DCE_PRIV_H__ */

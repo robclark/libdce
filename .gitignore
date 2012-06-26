@@ -17,10 +17,12 @@ configure
 .project
 .settings
 .dlls
-dcetest
+dcetestdec
 .executables
 .interfaces
 .libraries*
 *.mak
 *.xem3
-ducati/platform/base_image/package
+ducati/ti/dce/package
+/ducati/ti/dce/baseimage/package/
+/ducati/ti/dce/lib/

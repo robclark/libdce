@@ -7,7 +7,7 @@ dnl define PACKAGE_VERSION_* variables
 dnl AS_VERSION
 
 dnl can autoconf find the source ?
-AC_CONFIG_SRCDIR([dce.c])
+AC_CONFIG_SRCDIR([libdce.c])
 
 dnl set the autotools aux directory
 AC_CONFIG_AUX_DIR([config])
@@ -46,11 +46,16 @@ dnl Check for pkgconfig first
 AC_CHECK_PROG([HAVE_PKGCONFIG], [pkg-config], [yes], [no])
 
 dnl *** checks for libraries ***
-dnl Check for syslink
-PKG_CHECK_MODULES([SYSLINK], [syslink])
+dnl Check for libdrm
+PKG_CHECK_MODULES(DRM, libdrm libdrm_omap)
 
-dnl Check for tiler memmgr
-PKG_CHECK_MODULES([MEMMGR], [libtimemmgr])
+dnl Check for X11/libdri2
+PKG_CHECK_MODULES(X11, x11 dri2, [HAVE_X11=yes], [HAVE_X11=no])
+if test "x$HAVE_X11" = "xyes"; then
+  AC_DEFINE(HAVE_X11, 1, [Have X11 support])
+else
+  AC_MSG_WARN([Building without X11 support])
+fi
 
 dnl *** checks for header files ***
 dnl check if we have ANSI C header files

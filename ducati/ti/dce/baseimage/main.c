@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2011, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,28 +30,40 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DCE_H__
-#define __DCE_H__
+#include <xdc/std.h>
+#include <xdc/cfg/global.h>
+#include <xdc/runtime/System.h>
+#include <xdc/runtime/Diags.h>
 
-/* other than the codec-engine API, you must use the following two functions
- * to allocate the data structures passed to codec-engine APIs (other than the
- * raw input/output buffers which should be passed as physical addresses in
- * TILER space (SSPtr))
- */
-void * dce_alloc(int sz);
-void dce_free(void *ptr);
-void dce_set_fd(int fd);
-int dce_get_fd();
+#include <ti/ipc/MultiProc.h>
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/ipc/rpmsg/VirtQueue.h>
 
-/* avoid some messy stuff in xdc/std.h which pisses of gcc.. */
-#define xdc__ARGTOPTR
-#define xdc__ARGTOFXN
+#include <ti/grcm/RcmTypes.h>
+#include <ti/grcm/RcmServer.h>
 
-#ifndef SERVER
-struct omap_device * dce_init(void);
-void dce_deinit(struct omap_device *dev);
-#define XDM_MEMTYPE_BO 10
-#define XDM_MEMTYPE_BO_OFFSET 11
-#endif
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-#endif /* __DCE_H__ */
+/* Legacy function to allow Linux side rpmsg sample tests to work: */
+extern void start_ping_tasks();
+
+int main(int argc, char **argv)
+{
+    UInt16 hostId;
+
+    /* Set up interprocessor notifications */
+    System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
+
+    hostId = MultiProc_getId("HOST");
+    MessageQCopy_init(hostId);
+
+    /* Some background ping testing tasks, used by rpmsg samples: */
+    start_ping_tasks();
+
+    BIOS_start();
+
+    return 0;
+}

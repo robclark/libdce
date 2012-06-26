@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2011, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,34 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef __DCE_H__
-#define __DCE_H__
-
-/* other than the codec-engine API, you must use the following two functions
- * to allocate the data structures passed to codec-engine APIs (other than the
- * raw input/output buffers which should be passed as physical addresses in
- * TILER space (SSPtr))
+/*
+ *  ======== package.bld ========
  */
-void * dce_alloc(int sz);
-void dce_free(void *ptr);
-void dce_set_fd(int fd);
-int dce_get_fd();
 
-/* avoid some messy stuff in xdc/std.h which pisses of gcc.. */
-#define xdc__ARGTOPTR
-#define xdc__ARGTOFXN
+var testBld = xdc.loadCapsule("ti/sdo/ipc/build/test.bld");
+var commonBld = xdc.loadCapsule("ti/sdo/ipc/build/common.bld");
 
-#ifndef SERVER
-struct omap_device * dce_init(void);
-void dce_deinit(struct omap_device *dev);
-#define XDM_MEMTYPE_BO 10
-#define XDM_MEMTYPE_BO_OFFSET 11
-#endif
+/*
+ *  Export everything necessary to build this package with (almost) no
+ *  generated files.
+ */
+Pkg.attrs.exportAll = true;
 
-#endif /* __DCE_H__ */
+/*
+ *  ======== testArray ========
+ *
+ *  Example:
+ *    var testArray = [
+ *        {name: Test1},
+ *        {name: Test2, sources: ["Test"], config: "Test", refOutput: "Test", timeout: "15", buildTargets: ["C64", "C28_large"]}
+ *    ];
+ */
+
+var testArray = [
+    {name: 'ducati-m3-core0', sources: ["main", "ping_tasks", "iresman_tiledmemory"], config: "dce_core0", copts: "-D CORE0 --gcc", buildPlatforms: ["ti.platform.omap4430.core0"]},
+    {name: 'ducati-m3-ipu', sources: ["main", "ping_tasks", "iresman_tiledmemory"], config: "dce_ipu", copts: "-D IPU --gcc", buildPlatforms: ["ti.platform.omap4430.ipu"]},
+];
+
+arguments = ["profile=debug platform=all"];
+
+testBld.buildTests(testArray, arguments);
