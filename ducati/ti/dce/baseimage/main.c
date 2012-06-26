@@ -47,6 +47,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* Legacy function to allow Linux side rpmsg sample tests to work: */
+extern void start_ping_tasks();
+
 int main(int argc, char **argv)
 {
     UInt16 hostId;
@@ -56,6 +59,9 @@ int main(int argc, char **argv)
 
     hostId = MultiProc_getId("HOST");
     MessageQCopy_init(hostId);
+
+    /* Some background ping testing tasks, used by rpmsg samples: */
+    start_ping_tasks();
 
     BIOS_start();
 

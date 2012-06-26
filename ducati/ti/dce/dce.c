@@ -468,7 +468,7 @@ Bool dce_init(void)
 
     INFO("Creating DCE server thread...");
 
-    /* Respond to ping tests from Linux side rpmsg sample drivers: */
+    /* Create DCE task. */
     Task_Params_init(&params);
     params.instance->name = "dce-server";
     params.priority = Thread_Priority_ABOVE_NORMAL;
