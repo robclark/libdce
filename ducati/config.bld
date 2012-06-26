@@ -68,11 +68,25 @@ var M3 = xdc.useModule('ti.targets.arm.elf.M3');
 M3.rootDir = arm_cgtools_rootdir;
 M3.ccOpts.suffix += " -ms -pds=71";
 M3.lnkOpts.prefix += " --retain=.resource_table";
-/* Set default platform and list of all interested platforms for M3 */
-M3.platforms = [
-                  "ti.platform.omap4430.core0",
-                  "ti.platform.omap4430.core1",
-               ];
+
+/* Default platforms for M3 in non-SMP mode */
+var regPlatforms = [
+                    "ti.platform.omap4430.core0",
+                    "ti.platform.omap4430.core1",
+                    "ti.platform.omap54xx.core0",
+                    "ti.platform.omap54xx.core1",
+                    ];
+
+/* Default platforms for M3 in SMP mode */
+var smpPlatforms = [
+                    "ti.platform.omap4430.ipu",
+                    "ti.platform.omap54xx.ipu",
+                    ];
+
+
+M3.platforms = regPlatforms;
+//M3.platforms = smpPlatforms;
+
 M3.platform = M3.platforms[0];
 
 /* Uncomment the required targets */
@@ -81,3 +95,13 @@ Build.targets = [
                     M3,
                 ];
 
+
+
+/* Eliminate profiles that aren't 'debug' or 'release' */
+for (var t = 0; t < Build.targets.length; t++) {
+    for (prof in Build.targets[t].profiles) {
+        if ((prof != "debug") && (prof != "release")) {
+            delete Build.targets[t].profiles[prof];
+        }
+    }
+}
