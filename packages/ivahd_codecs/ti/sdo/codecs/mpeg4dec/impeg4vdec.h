@@ -39,7 +39,7 @@
 
 typedef struct IMPEG4VDEC_Status {
   IVIDDEC3_Status viddec3Status;
-  XDAS_Int32 reserved[4];
+  XDAS_Int32 reserved[7];
 } IMPEG4VDEC_Status;
 
 typedef struct IMPEG4VDEC_Params {
@@ -47,11 +47,12 @@ typedef struct IMPEG4VDEC_Params {
   XDAS_Int32 outloopDeBlocking;
   XDAS_Int32 ErrorConcealmentON;
   XDAS_Int32 sorensonSparkStream;
-  XDAS_Int32 reserved[3];
+  XDAS_Int32 reserved[6];
 } IMPEG4VDEC_Params;
 
 typedef struct IMPEG4VDEC_DynamicParams {
   IVIDDEC3_DynamicParams viddec3DynamicParams;
+  XDAS_Int32 reserved[3];
 } IMPEG4VDEC_DynamicParams;
 
 typedef struct IMPEG4VDEC_InArgs {
