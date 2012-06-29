@@ -1,4 +1,7 @@
 /*
+ * Monitor load and trace any change.
+ * Author: Vincent Stehlé <v-stehle@ti.com>, copied from ping_tasks.c
+ *
  * Copyright (c) 2011, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -33,41 +36,83 @@
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/System.h>
-#include <xdc/runtime/Diags.h>
 
-#include <ti/ipc/MultiProc.h>
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
-#include <ti/ipc/rpmsg/VirtQueue.h>
-
-#include <ti/grcm/RcmTypes.h>
-#include <ti/grcm/RcmServer.h>
+#include <ti/sysbios/smp/Load.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-/* Legacy function to allow Linux side rpmsg sample tests to work: */
-extern void start_ping_tasks();
+/*
+ * Time to sleep between load reporting attempts, in ticks.
+ * On TI platforms, 1 tick == 1 ms.
+ */
+#define SLEEP_TICKS 1000
 
-int main(int argc, char **argv)
+/*
+ * Load reporting "threshold". When the new load is within previous reported
+ * load +- this value, we do not report it.
+ */
+#define THRESHOLD 1
+
+/* Monitor load and trace any change. */
+static Void loadTaskFxn(UArg arg0, UArg arg1)
 {
-    extern void start_load_task(void);
-    UInt16 hostId;
+    UInt32 prev_load = 0;
 
-    /* Set up interprocessor notifications */
-    System_printf("%s starting..\n", MultiProc_getName(MultiProc_self()));
+    /* Suppress warnings. */
+    (void)arg0;
+    (void)arg1;
 
-    hostId = MultiProc_getId("HOST");
-    MessageQCopy_init(hostId);
+    System_printf(
+        "loadTask: started\n"
+        "  SLEEP_TICKS: %u\n"
+        "  Load_hwiEnabled: %d\n"
+        "  Load_swiEnabled: %d\n"
+        "  Load_taskEnabled: %d\n"
+        "  Load_updateInIdle: %d\n"
+        "  Load_windowInMs: %u\n"
+        ,
+        SLEEP_TICKS,
+        Load_hwiEnabled,
+        Load_swiEnabled,
+        Load_taskEnabled,
+        Load_updateInIdle,
+        Load_windowInMs
+    );
 
-    /* Some background ping testing tasks, used by rpmsg samples: */
-    start_ping_tasks();
+    /* Infinite loop to trace load. */
+    for (;;) {
+        UInt32 load;
+        unsigned delta;
 
-    /* CPU load reporting in the trace. */
-    start_load_task();
+        /* Get load. */
+        load = Load_getCPULoad();
 
-    BIOS_start();
+        /* Trace if changed and delta above threshold. */
+        delta = abs((int)load - (int)prev_load);
 
-    return 0;
+        if (delta > THRESHOLD) {
+            System_printf("loadTask: cpu load = %u%%\n", load);
+            prev_load = load;
+        }
+
+        /* Delay. */
+        Task_sleep(SLEEP_TICKS);
+    }
+}
+
+void start_load_task(void)
+{
+    Task_Params params;
+
+    /* Monitor load and trace any change. */
+    Task_Params_init(&params);
+    params.instance->name = "loadtsk";
+    params.priority = 1;
+
+    if(!Task_create(loadTaskFxn, &params, NULL))
+        System_printf("Could not create load task!\n");
 }
