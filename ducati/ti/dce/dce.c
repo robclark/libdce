@@ -92,6 +92,8 @@ typedef Int32  (*RelocFxn)(void *, uint8_t *ptr, uint32_t len);
 typedef void   (*DeleteFxn)(void *);
 
 static VIDENC2_Handle videnc2_create(Engine_Handle engine, String name, VIDENC2_Params *params);
+static XDAS_Int32 videnc2_control(VIDENC2_Handle codec, VIDENC2_Cmd id, VIDENC2_DynamicParams *dynParams,
+    VIDENC2_Status *status);
 static VIDDEC3_Handle viddec3_create(Engine_Handle engine, String name, VIDDEC3_Params *params);
 static int videnc2_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
 static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len);
