@@ -104,7 +104,7 @@ static struct {
     RelocFxn   reloc;   /* handle buffer relocation table */
 } codec_fxns[] = {
         [OMAP_DCE_VIDENC2] = {
-                (CreateFxn)videnc2_create,   (ControlFxn)VIDENC2_control,
+                (CreateFxn)videnc2_create,   (ControlFxn)videnc2_control,
                 (ProcessFxn)VIDENC2_process, (DeleteFxn)VIDENC2_delete,
                 (RelocFxn)videnc2_reloc,
         },
@@ -156,6 +156,18 @@ static VIDENC2_Handle videnc2_create(Engine_Handle engine, String name, VIDENC2_
     }
 
     return h;
+}
+
+static XDAS_Int32 getBufferFxnStub(XDM_DataSyncHandle handle, XDM_DataSyncDesc *desc)
+{
+    return 0;
+}
+
+static XDAS_Int32 videnc2_control(VIDENC2_Handle codec, VIDENC2_Cmd id,
+        VIDENC2_DynamicParams *dynParams, VIDENC2_Status *status)
+{
+    dynParams->getBufferFxn = getBufferFxnStub;
+    return VIDENC2_control(codec, id, dynParams, status);
 }
 
 static void get_viddec3_version(VIDDEC3_Handle h, char *buffer, unsigned size)
