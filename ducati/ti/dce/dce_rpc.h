@@ -39,6 +39,7 @@
 #define DCE_RPC_CODEC_CONTROL	0x13
 #define DCE_RPC_CODEC_PROCESS	0x14
 #define DCE_RPC_CODEC_DELETE	0x15
+#define DCE_RPC_CODEC_GET_VERSION 0x16
 
 struct dce_rpc_hdr {
 	/* A Message-Id as defined above:
