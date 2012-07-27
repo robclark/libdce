@@ -42,6 +42,7 @@ typedef struct IH264VDEC_Status {
   XDAS_Int32 reserved[7];
   XDAS_UInt32 gapInFrameNum;
   XDAS_UInt32 spsMaxRefFrames;
+  XDAS_Int32 reservedSomeMore[3];
 } IH264VDEC_Status;
 
 typedef struct IH264VDEC_Params {
