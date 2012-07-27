@@ -231,6 +231,28 @@ out:
     return ret;
 }
 
+XDAS_Int32 get_version(void *codec, void *dynParams, void *status)
+{
+    struct drm_omap_dce_codec_get_version req = {
+            .codec_handle = (uint32_t)codec,
+            .dparams_bo = virt2bo(dynParams),
+            .status_bo = virt2bo(status),
+            .version_bo = virt2bo(((IVIDDEC3_Status*)status)->data.buf),
+    };
+    int ret;
+
+    ret = drmCommandWriteRead(fd, CMD(CODEC_GET_VERSION), &req, sizeof(req));
+    if (ret) {
+        ERROR("ioctl failed: %d", ret);
+        goto out;
+    }
+
+    ret = req.result;
+
+out:
+    return ret;
+}
+
 XDAS_Int32 process(void *codec, void *inBufs, void *outBufs,
         void *inArgs, void *outArgs)
 {
@@ -291,7 +313,10 @@ XDAS_Int32 VIDDEC3_control(VIDDEC3_Handle codec, VIDDEC3_Cmd id,
     XDAS_Int32 ret;
     DEBUG(">> codec=%p, id=%d, dynParams=%p, status=%p",
             codec, id, dynParams, status);
-    ret = control(codec, id, dynParams, status);
+    if (id == XDM_GETVERSION)
+        ret = get_version(codec, dynParams, status);
+    else
+        ret = control(codec, id, dynParams, status);
     DEBUG("<< ret=%d", ret);
     return ret;
 }

@@ -101,6 +101,20 @@ struct dce_rpc_codec_control_rsp {
 	int32_t result;
 } __packed;
 
+struct dce_rpc_codec_get_version_req {
+        struct dce_rpc_hdr hdr;
+        uint32_t codec_id;
+        uint32_t codec;
+        uint32_t dparams;
+        uint32_t status;
+        uint32_t version;
+} __packed;
+
+struct dce_rpc_codec_get_version_rsp {
+        struct dce_rpc_hdr hdr;
+        int32_t result;
+} __packed;
+
 /* NOTE: CODEC_PROCESS does somewhat more than the other ioctls, in that it
  * handles buffer mapping/unmapping.  So the inBufs/outBufs are copied inline
  * (with translated addresses in the copy sent inline with codec_process_req).

@@ -334,6 +334,30 @@ static int codec_control(void *msg)
     return sizeof(*rsp);
 }
 
+static int codec_get_version(void *msg)
+{
+    struct dce_rpc_codec_get_version_req *req = msg;
+    struct dce_rpc_codec_get_version_rsp *rsp = msg;
+    void *dparams  = H2P((MemHeader *)req->dparams);
+    void *status  = H2P((MemHeader *)req->status);
+    void *version  = H2P((MemHeader *)req->version);
+    void *ptr = ((IVIDDEC3_Status*)status)->data.buf;
+
+    DEBUG(">> codec=%08x, status=%p, version=%p, codec_id=%d",
+            req->codec, status, version, req->codec_id);
+    DEBUG("   status size:  %d", ((int32_t *)status)[0]);
+    ((IVIDDEC3_Status*)status)->data.buf = version;
+    rsp->result = codec_fxns[req->codec_id].control(
+            (void *)req->codec, XDM_GETVERSION, dparams, status);
+    ((IVIDDEC3_Status*)status)->data.buf = ptr;
+    dce_clean(dparams);
+    dce_clean(status);
+    dce_clean(version);
+    DEBUG("<< ret=%d", rsp->result);
+
+    return sizeof(*rsp);
+}
+
 /* Notes about serialization of process command:
  *
  * Since codec_process code on kernel side is doing buffer mapping/unmapping,
@@ -505,6 +529,7 @@ static struct {
         [DCE_RPC_CODEC_CONTROL] = FXN(codec_control),
         [DCE_RPC_CODEC_PROCESS] = FXN(codec_process),
         [DCE_RPC_CODEC_DELETE]  = FXN(codec_delete),
+        [DCE_RPC_CODEC_GET_VERSION] = FXN(codec_get_version),
 };
 
 static void dce_main(uint32_t arg0, uint32_t arg1)
