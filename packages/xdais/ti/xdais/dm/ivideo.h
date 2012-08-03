@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -828,6 +828,7 @@ typedef struct IVIDEO2_BufDesc {
 
 #endif
 /*
- *  @(#) ti.xdais.dm; 1, 0, 7,14; 5-24-2010 11:19:26; /db/wtree/library/trees/dais/dais.git/src/
+ *  @(#) ti.xdais.dm; 1, 0, 7,1; 6-19-2012 17:57:46; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 

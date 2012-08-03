@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,13 +62,13 @@ extern "C" {
 #define IALG_SYSCMD     256 /**< Minimum "system" IALG_Cmd value. */
 
 #define IALG_EOK        0   /**< Successful return status code. */
-#define IALG_EFAIL      -1  /**< Unspecified error return status code. */
+#define IALG_EFAIL      (-1)  /**< Unspecified error return status code. */
 
-#define IALG_CUSTOMFAILBASE  -2048/**< Algorithm-specific failure code end.
+#define IALG_CUSTOMFAILBASE  (-2048)/**< Algorithm-specific failure code end.
                                    *
                                    *   @remarks This is 0xfffff800.
                                    */
-#define IALG_CUSTOMFAILEND -256   /**< Algorithm-specific failure code base.
+#define IALG_CUSTOMFAILEND (-256) /**< Algorithm-specific failure code base.
                                    *
                                    *   @remarks This is 0xffffff00.
                                    */
@@ -761,6 +761,7 @@ typedef struct IALG_Fxns {
 
 #endif  /* ti_xdais_IALG_ */
 /*
- *  @(#) ti.xdais; 1, 2.0, 1,14; 5-24-2010 11:19:25; /db/wtree/library/trees/dais/dais.git/src/
+ *  @(#) ti.xdais; 1, 2.0, 1,1; 6-19-2012 17:57:45; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 

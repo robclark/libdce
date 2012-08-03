@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,9 +39,9 @@
  *              algorithms.
  */
 /**
- *  @defgroup   ti_xdais_dm_IVIDDEC3   IVIDDEC3 - XDM Video Decoder Interface (Beta)
+ *  @defgroup   ti_xdais_dm_IVIDDEC3   IVIDDEC3 - XDM Video Decoder Interface
  *
- *  This is the XDM IVIDDEC3 Video Decoder Interface (Beta).
+ *  This is the XDM IVIDDEC3 Video Decoder Interface.
  */
 
 #ifndef ti_xdais_dm_IVIDDEC3_
@@ -56,7 +56,6 @@
 extern "C" {
 #endif
 
-
 /** @ingroup    ti_xdais_dm_IVIDDEC3 */
 /*@{*/
 
@@ -66,7 +65,7 @@ extern "C" {
 
 /**
  *  @brief      This must be the first field of all IVIDDEC3
- *              instance objects.
+ *              instance objects
  */
 typedef struct IVIDDEC3_Obj {
     struct IVIDDEC3_Fxns *fxns;
@@ -74,13 +73,13 @@ typedef struct IVIDDEC3_Obj {
 
 
 /**
- *  @brief      Opaque handle to an IVIDDEC3 objects.
+ *  @brief      Opaque handle to an IVIDDEC3 objects
  */
-typedef struct IVIDDEC3_Obj  *IVIDDEC3_Handle;
+typedef struct IVIDDEC3_Obj *IVIDDEC3_Handle;
 
 
 /**
- *  @brief      Video decoder output frame order.
+ *  @brief      Video decoder output frame order
  *
  *  @enumWarning
  *
@@ -111,7 +110,7 @@ typedef enum {
 
 /**
  *  @brief      Defines the creation time parameters for
- *              all IVIDDEC3 instance objects.
+ *              all IVIDDEC3 instance objects
  *
  *  @extensibleStruct
  */
@@ -226,7 +225,7 @@ typedef struct IVIDDEC3_Params {
 
 /**
  *  @brief      This structure defines the algorithm parameters that can be
- *              modified after creation via IVIDDEC3_Fxns.control() calls.
+ *              modified after creation via IVIDDEC3_Fxns.control() calls
  *
  *  @remarks    It is not necessary that a given implementation support all
  *              dynamic parameters to be configurable at run time.  If a
@@ -405,7 +404,7 @@ typedef struct IVIDDEC3_DynamicParams {
 
 /**
  *  @brief      Defines the input arguments for all IVIDDEC3 instance
- *              process function.
+ *              process function
  *
  *  @extensibleStruct
  *
@@ -439,7 +438,7 @@ typedef struct IVIDDEC3_InArgs {
 
 
 /**
- *  @brief      Defines instance status parameters.
+ *  @brief      Defines instance status parameters
  *
  *  @extensibleStruct
  *
@@ -590,7 +589,7 @@ typedef struct IVIDDEC3_Status {
 
 /**
  *  @brief      Mode in which display buffers will be returned in
- *              IVIDDEC3_OutArgs.
+ *              IVIDDEC3_OutArgs
  *
  *  @remarks    Note that we start this enum at '1' to help catch inadvertently
  *              uninitialized fields.
@@ -635,7 +634,7 @@ typedef enum {
 
 /**
  *  @brief      Defines the run time output arguments for
- *              all IVIDDEC3 instance objects.
+ *              all IVIDDEC3 instance objects
  *
  *  @extensibleStruct
  *
@@ -844,7 +843,7 @@ typedef struct IVIDDEC3_OutArgs {
 
 
 /**
- *  @brief      Defines the control commands for the IVIDDEC3 module.
+ *  @brief      Defines the control commands for the IVIDDEC3 module
  *
  *  @remarks    This ID can be extended in IMOD interface for
  *              additional controls.
@@ -857,7 +856,7 @@ typedef  IALG_Cmd IVIDDEC3_Cmd;
 
 
 /**
- *  @brief      Defines all of the operations on IVIDDEC3 objects.
+ *  @brief      Defines all of the operations on IVIDDEC3 objects
  */
 typedef struct IVIDDEC3_Fxns {
     IALG_Fxns ialg;               /**< XDAIS algorithm interface.
@@ -866,7 +865,7 @@ typedef struct IVIDDEC3_Fxns {
                                    */
 
 /**
- *  @brief      Basic video decoding call.
+ *  @brief      Basic video decoding call
  *
  *  @param[in]  handle          Handle to an algorithm instance.
  *  @param[in,out] inBufs       Input buffer descriptors.
@@ -963,7 +962,7 @@ typedef struct IVIDDEC3_Fxns {
 
 
 /**
- *  @brief      Control behavior of an algorithm.
+ *  @brief      Control behavior of an algorithm
  *
  *  @param[in]  handle          Handle to an algorithm instance.
  *  @param[in]  id              Command id.  See #XDM_CmdId.
@@ -1011,6 +1010,7 @@ typedef struct IVIDDEC3_Fxns {
 
 #endif
 /*
- *  @(#) ti.xdais.dm; 1, 0, 7,14; 5-24-2010 11:19:26; /db/wtree/library/trees/dais/dais.git/src/
+ *  @(#) ti.xdais.dm; 1, 0, 7,1; 6-19-2012 17:57:46; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 

@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,7 @@ typedef Uint32          XDAS_UInt32;    /**< Actual size of type is 32 bits. */
 
 #endif  /* ti_xdais_XDAS_ */
 /*
- *  @(#) ti.xdais; 1, 2.0, 1,14; 5-24-2010 11:19:26; /db/wtree/library/trees/dais/dais.git/src/
+ *  @(#) ti.xdais; 1, 2.0, 1,1; 6-19-2012 17:57:46; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 

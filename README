@@ -26,7 +26,7 @@ The following gives an example of how to build.  I don't claim that it is the be
 * BIOS (the RTOS) - 6.32.01.38
 * Codec Engine (CE) - 3.20.00.16
 * Framework Component (FC) - 3.20.00.22
-* XDAIS - 7.20.00.07
+* XDAIS - 7.23.00.06
 * HDVICP2 API and HDVICP2_CODECS - 1.00.000
 * sysbios-rpmsg - commit-id [https://github.com/ohadbc/sysbios-rpmsg/commit/885db2a4f8ae20f89ef6574e29632433e7e7de4c 885db2a4f8ae20f89ef6574e29632433e7e7de4c]
 * libdce

@@ -214,6 +214,7 @@ static int videnc2_reloc(VIDENC2_Handle handle, uint8_t *ptr, uint32_t len)
     return -1; // TODO
 }
 
+/* needs to be updated when it is enabled in omapdce */
 static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len)
 {
     static VIDDEC3_DynamicParams params = {
@@ -227,7 +228,7 @@ static int viddec3_reloc(VIDDEC3_Handle handle, uint8_t *ptr, uint32_t len)
             },
     };
 INFO("status.size=%d", status.size);
-    return VIDDEC3_control(handle, XDM_UPDATEBUFS, &params, &status);
+    return VIDDEC3_control(handle, XDM_MOVEBUFS, &params, &status);
 }
 
 

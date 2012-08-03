@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,6 @@
 extern "C" {
 #endif
 
-
 /** @ingroup    ti_xdais_dm_IVIDENC2 */
 /*@{*/
 
@@ -110,7 +109,7 @@ typedef struct IVIDENC2_Obj {
 /**
  *  @brief      Opaque handle to an IVIDENC2 objects.
  */
-typedef struct IVIDENC2_Obj  *IVIDENC2_Handle;
+typedef struct IVIDENC2_Obj *IVIDENC2_Handle;
 
 /**
  *  @brief      Default codec profile
@@ -937,6 +936,7 @@ typedef struct IVIDENC2_Fxns {
 
 #endif
 /*
- *  @(#) ti.xdais.dm; 1, 0, 7,23; 10-21-2010 16:35:44; /db/wtree/library/trees/dais/dais.git/src/ dais-s07
+ *  @(#) ti.xdais.dm; 1, 0, 7,1; 6-19-2012 17:57:46; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 

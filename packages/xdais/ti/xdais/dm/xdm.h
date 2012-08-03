@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2010, Texas Instruments Incorporated
+ * Copyright (c) 2012, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,7 +218,7 @@ typedef struct XDM1_SingleBufDesc {
  *              indicate buffer size using a simple integer, but rather
  *              must indicate memory size using a width and height.
  */
-typedef union  {
+typedef union {
     struct {
         XDAS_Int32 width;   /**< Width of @c buf in 8-bit bytes. */
         XDAS_Int32 height;  /**< Height of @c buf in 8-bit bytes. */
@@ -648,9 +648,56 @@ typedef enum {
                              *              late acquire IRES feature may
                              *              implement this command.
                              */
-    XDM_UPDATEBUFS = 10,    /**< Update codec's locked buffer addresses.  This
-                             *   allows for I/O buffers to be relocated in
-                             *   memory between process calls.
+    XDM_MOVEBUFS = 10       /**< Move (replace) data buffers an algorithm is
+                             *   currently referencing.
+                             *
+                             *   @remarks   Handling this command is optional.
+                             *
+                             *   @remarks   An application can use this command
+                             *              to move data buffers that an
+                             *              algorithm is currently referencing.
+                             *
+                             *   @remarks   Only algorithms tracking buffers
+                             *              with id's (e.g. IVIDDEC3) can
+                             *              implement this command.
+                             *
+                             *   @remarks   Only algorithms who's @c _Status
+                             *              struct includes a @c data field
+                             *              (e.g. IVIDDEC3) can implement this
+                             *              command.  This @c data field is a
+                             *              buffer descriptor.  When using the
+                             *              XDM_MOVEBUFS command, this @c data
+                             *              buffer is an IN buffer (read-only
+                             *              to the algorithm) which
+                             *              contains an array of one or
+                             *              more XDM2_MoveBufDesc elements.
+                             *              Each element indicates (via the id
+                             *              field), a buffer which the
+                             *              algorithm is referencing that
+                             *              needs to be "moved".
+                             *
+                             *   @remarks   The application is responsible for
+                             *              indicating the number of
+                             *              XDM2_MoveBufDesc elements by
+                             *              appropriately setting the
+                             *              @c _Status.data.bufSize field.
+                             *
+                             *   @remarks   As with all control() processing,
+                             *              the algorithm is responsible for
+                             *              appropriately setting the
+                             *              @c _Status.data.accessMask field
+                             *              indicating if/how the algorithm
+                             *              accessed the data buffer.
+                             *              Typically for this cmd, the
+                             *              algorithm reads from the @c data
+                             *              buffer, so it should set the
+                             *              #XDM_ACCESSMODE_READ bit in the
+                             *              @c _Status.data.accessMask field.
+                             *              Frameworks/apps can use this
+                             *              to appropriately handle cache for
+                             *              that @c data buffer.
+                             *
+                             *   @sa    XDM2_MoveBufDesc
                              */
 } XDM_CmdId;
 
@@ -852,6 +899,15 @@ typedef enum {
     XDM_BE_32 = 6,          /**< 32 bit big endian stream. */
     XDM_BE_64 = 7           /**< 64 bit big endian stream. */
 } XDM_DataFormat;
+
+
+/**
+ *  @brief      Descriptor for a buffer to move.
+ */
+typedef struct XDM2_MoveBufDesc {
+    XDAS_Int32 id;           /**< Id of the buffer to move */
+    XDM2_BufDesc bufDesc;    /**< New buffer descriptor */
+} XDM2_MoveBufDesc;
 
 
 /**
@@ -1268,7 +1324,13 @@ typedef XDAS_Int32 (*XDM_DataSyncGetFxn)(XDM_DataSyncHandle dataSyncHandle,
  *              allocator <i>does</i> initialize the buffer, it must ensure the
  *              cache coherency via writeback-invalidate.
  *
- *  @todo       Needs review
+ *  @retval     XDM_EOK            Allocator is able to provide the buffer or
+ *                                 is not able to provide the buffer but
+ *                                 indicates that it can provide the buffers
+ *                                 in future such calls.
+ *  @retval     XDM_EFAIL          Allocator is unable to provide the buffer
+ *                                 and it will not be able to provide the
+ *                                 buffer in the future.
  *
  *  @sa IVIDENC2_DynamicParams::putDataFxn()
  *  @sa IVIDENC2_Fxns::process()
@@ -1304,6 +1366,7 @@ typedef XDAS_Int32 (*XDM_DataSyncPutBufferFxn)(XDM_DataSyncHandle dataSyncHandle
 
 #endif  /* ti_xdais_dm_XDM_ */
 /*
- *  @(#) ti.xdais.dm; 1, 0, 7,14; 5-24-2010 11:19:27; /db/wtree/library/trees/dais/dais.git/src/
+ *  @(#) ti.xdais.dm; 1, 0, 7,1; 6-19-2012 17:57:47; /db/wtree/library/trees/dais/dais-w06/src/ xlibrary
+
  */
 
