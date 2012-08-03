@@ -39,9 +39,11 @@
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/ipc/rpmsg/VirtQueue.h>
+#include <ti/resources/IpcMemory.h>
 
 #include <ti/grcm/RcmTypes.h>
 #include <ti/grcm/RcmServer.h>
+#include <ti/dce/dce_priv.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +51,23 @@
 
 /* Legacy function to allow Linux side rpmsg sample tests to work: */
 extern void start_ping_tasks();
+
+static unsigned int SyslinkMemUtils_VirtToPhys(Ptr Addr)
+{
+    unsigned int    pa;
+
+    if( !Addr || IpcMemory_virtToPhys((unsigned int) Addr, &pa)) {
+        return (0);
+    }
+    return (pa);
+}
+
+void *MEMUTILS_getPhysicalAddr(Ptr vaddr)
+{
+    unsigned int paddr = SyslinkMemUtils_VirtToPhys(vaddr);
+    DEBUG("virtual addr:%x\tphysical addr:%x", vaddr, paddr);
+    return (void *)paddr;
+}
 
 int main(int argc, char **argv)
 {

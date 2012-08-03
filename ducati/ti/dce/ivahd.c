@@ -262,23 +262,6 @@ void ivahd_release(void)
     Hwi_restore(hwiKey);
 }
 
-static unsigned int SyslinkMemUtils_VirtToPhys(Ptr Addr)
-{
-    unsigned int    pa;
-
-    if( !Addr || IpcMemory_virtToPhys((unsigned int) Addr, &pa)) {
-        return (0);
-    }
-    return (pa);
-}
-
-void *MEMUTILS_getPhysicalAddr(Ptr vaddr)
-{
-    unsigned int paddr = SyslinkMemUtils_VirtToPhys(vaddr);
-    DEBUG("virtual addr:%x\tphysical addr:%x", vaddr, paddr);
-    return (void *)paddr;
-}
-
 static Bool allocFxn(IALG_MemRec *memTab, Int numRecs);
 static void freeFxn(IALG_MemRec *memTab, Int numRecs);
 
