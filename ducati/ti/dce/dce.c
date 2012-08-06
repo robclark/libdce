@@ -542,6 +542,7 @@ static void dce_main(uint32_t arg0, uint32_t arg1)
     INFO("Creating DCE MessageQ...");
 
     dst = MultiProc_getId("HOST");
+    MessageQCopy_init(dst);
 
     /* Create the messageQ for receiving (and get our endpoint for sending). */
     handle = MessageQCopy_create(DCE_PORT, &ep);
