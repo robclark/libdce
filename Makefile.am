@@ -16,12 +16,15 @@ CE_CFLAGS                    = \
                                -I$(top_srcdir)/packages/xdais
 
 libdce_la_SOURCES            = libdce.c
-libdce_la_CFLAGS             = $(WARN_CFLAGS) $(CE_CFLAGS) $(DRM_CFLAGS) $(X11_CFLAGS)
+libdce_la_CFLAGS             = $(WARN_CFLAGS) $(CE_CFLAGS) $(DRM_CFLAGS) $(X11_CFLAGS) $(WAYLAND_CFLAGS)
 libdce_la_LDFLAGS            = -no-undefined
-libdce_la_LIBADD             = $(DRM_LIBS) $(X11_LIBS)
+libdce_la_LIBADD             = $(DRM_LIBS) $(X11_LIBS) $(WAYLAND_LIBS)
 
 if ENABLE_X11
 libdce_la_SOURCES           += libdce-x11.c
+endif
+if ENABLE_WAYLAND
+libdce_la_SOURCES           += libdce-wayland.c wayland-drm-protocol.c
 endif
 
 libdce_la_includedir         = $(includedir)/dce/

@@ -53,6 +53,9 @@
 #ifdef HAVE_X11
 int dce_auth_x11(int fd);
 #endif
+#ifdef HAVE_WAYLAND
+int dce_auth_wayland(int fd);
+#endif
 
 static int init(void);
 static void deinit(void);
@@ -432,9 +435,16 @@ static int init(void)
             authenticated = 1;
     }
 #endif
+#ifdef HAVE_WAYLAND
+    if (!authenticated) {
+        fd = dce_auth_wayland(fd);
+        if (fd != -1)
+            authenticated = 1;
+    }
+#endif
 
     if (!authenticated) {
-        INFO("no X11, fallback to opening DRM device directly");
+        INFO("no X11/wayland, fallback to opening DRM device directly");
         fd = drmOpen("omapdrm", "platform:omapdrm:00");
     }
 
