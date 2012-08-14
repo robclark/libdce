@@ -51,10 +51,7 @@
 #include <ti/sdo/ce/video2/videnc2.h>
 
 #ifdef HAVE_X11
-#  include <X11/Xlib.h>
-#  include <X11/Xmd.h>
-#  include <X11/extensions/dri2proto.h>
-#  include <X11/extensions/dri2.h>
+int dce_auth_x11(int fd);
 #endif
 
 static int init(void);
@@ -417,15 +414,10 @@ void dce_deinit(struct omap_device *dev)
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static int count = 0;
 
+
 static int init(void)
 {
-#ifdef HAVE_X11
-    Display *dpy;
-    Window root;
-    drm_magic_t magic;
-    int eventBase, errorBase, major, minor;
-    char *driver, *device;
-#endif
+    int authenticated = 0;
 
     pthread_mutex_lock(&mutex);
 
@@ -434,72 +426,14 @@ static int init(void)
     }
 
 #ifdef HAVE_X11
-    INFO("attempting to open X11 connection");
-    dpy = XOpenDisplay(NULL);
-    if (!dpy) {
-        ERROR("Could not open display");
-        goto no_x11;
+    if (!authenticated) {
+        fd = dce_auth_x11(fd);
+        if (fd != -1)
+            authenticated = 1;
     }
-
-    if (!DRI2InitDisplay(dpy, NULL)) {
-        ERROR("DRI2InitDisplay failed");
-        goto no_x11;
-    }
-
-    if (!DRI2QueryExtension(dpy, &eventBase, &errorBase)) {
-        ERROR("DRI2QueryExtension failed");
-        goto no_x11;
-    }
-
-    DEBUG("DRI2QueryExtension: eventBase=%d, errorBase=%d", eventBase, errorBase);
-
-    if (!DRI2QueryVersion(dpy, &major, &minor)) {
-        ERROR("DRI2QueryVersion failed");
-        goto no_x11;
-    }
-
-    DEBUG("DRI2QueryVersion: major=%d, minor=%d", major, minor);
-
-    root = RootWindow(dpy, DefaultScreen(dpy));
-
-    if (!DRI2Connect(dpy, root, DRI2DriverDRI, &driver, &device)) {
-        DEBUG("DRI2Connect failed");
-        goto no_x11;
-    }
-
-    DEBUG("DRI2Connect: driver=%s, device=%s", driver, device);
-
-    /* only open the device if we don't already have an fd.. see
-     * dce_set_fd().  Need to sort out a better way to handle this
-     * but GEM buffer handles are only valid within the context of
-     * a given file-open.  Switching to dmabuf or flink handles
-     * would solve this.
-     */
-    if (fd == -1) {
-        fd = open(device, O_RDWR);
-        if (fd < 0) {
-            ERROR("open failed");
-            goto no_x11_free;
-        }
-    }
-
-    if (drmGetMagic(fd, &magic)) {
-        ERROR("drmGetMagic failed");
-        goto no_x11_free;
-    }
-
-    if (!DRI2Authenticate(dpy, root, magic)) {
-        ERROR("DRI2Authenticate failed");
-        goto no_x11_free;
-    }
-
-no_x11_free:
-    XFree(driver);
-    XFree(device);
-no_x11:
 #endif
 
-    if (fd == -1) {
+    if (!authenticated) {
         INFO("no X11, fallback to opening DRM device directly");
         fd = drmOpen("omapdrm", "platform:omapdrm:00");
     }

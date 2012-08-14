@@ -56,6 +56,7 @@ if test "x$HAVE_X11" = "xyes"; then
 else
   AC_MSG_WARN([Building without X11 support])
 fi
+AM_CONDITIONAL(ENABLE_X11, [test "x$HAVE_X11" = xyes])
 
 dnl *** checks for header files ***
 dnl check if we have ANSI C header files

@@ -20,6 +20,10 @@ libdce_la_CFLAGS             = $(WARN_CFLAGS) $(CE_CFLAGS) $(DRM_CFLAGS) $(X11_C
 libdce_la_LDFLAGS            = -no-undefined
 libdce_la_LIBADD             = $(DRM_LIBS) $(X11_LIBS)
 
+if ENABLE_X11
+libdce_la_SOURCES           += libdce-x11.c
+endif
+
 libdce_la_includedir         = $(includedir)/dce/
 libdce_la_include_HEADERS    = dce.h
 
