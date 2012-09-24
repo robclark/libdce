@@ -51,10 +51,10 @@
 #include <ti/sdo/ce/video2/videnc2.h>
 
 #ifdef HAVE_X11
-int dce_auth_x11(int fd);
+int dce_auth_x11(int *fd);
 #endif
 #ifdef HAVE_WAYLAND
-int dce_auth_wayland(int fd);
+int dce_auth_wayland(int *fd);
 #endif
 
 static int init(void);
@@ -430,20 +430,20 @@ static int init(void)
 
 #ifdef HAVE_X11
     if (!authenticated) {
-        fd = dce_auth_x11(fd);
-        if (fd != -1)
+        int ret = dce_auth_x11(&fd);
+        if (!ret)
             authenticated = 1;
     }
 #endif
 #ifdef HAVE_WAYLAND
     if (!authenticated) {
-        fd = dce_auth_wayland(fd);
-        if (fd != -1)
+        int ret = dce_auth_wayland(&fd);
+        if (!ret)
             authenticated = 1;
     }
 #endif
 
-    if (!authenticated) {
+    if ((fd == -1) && !authenticated) {
         INFO("no X11/wayland, fallback to opening DRM device directly");
         fd = drmOpen("omapdrm", "platform:omapdrm:00");
     }

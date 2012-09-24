@@ -51,13 +51,15 @@
 
 #include <ti/dce/dce_priv.h>
 
-int dce_auth_x11(int fd)
+int dce_auth_x11(int *pfd)
 {
     Display *dpy;
     Window root;
     drm_magic_t magic;
     int eventBase, errorBase, major, minor;
     char *driver, *device;
+    int ret = -1;
+    int fd = *pfd;
 
     INFO("attempting to open X11 connection");
     dpy = XOpenDisplay(NULL);
@@ -118,9 +120,12 @@ int dce_auth_x11(int fd)
         goto no_x11_free;
     }
 
+    ret = 0;
+    *pfd = fd;
+
 no_x11_free:
     XFree(driver);
     XFree(device);
 no_x11:
-    return fd;
+    return ret;
 }

@@ -77,7 +77,7 @@ drm_handle_device(void *data, struct wl_drm *drm, const char *device)
         d->fd = open(device, O_RDWR | O_CLOEXEC);
         if (d->fd == -1) {
             ERROR("could not open %s: %m", device);
-            d->error = 1;
+            d->error = -1;
             return;
         }
     }
@@ -120,14 +120,19 @@ display_handle_global (struct wl_display *display, uint32_t id,
     }
 }
 
-int dce_auth_wayland(int fd)
+int dce_auth_wayland(int *fd)
 {
     struct display disp = {0};
     struct display *d = &disp;
 
-    d->fd = fd;
+    d->fd = *fd;
 
+    INFO("attempting to open wayland connection");
     d->display = wl_display_connect(NULL);
+    if (!d->display) {
+        ERROR("Could not open display");
+        return -1;
+    }
     wl_display_add_global_listener (d->display,
             display_handle_global, d);
 
@@ -141,5 +146,8 @@ int dce_auth_wayland(int fd)
     wl_display_flush (d->display);
     wl_display_disconnect (d->display);
 
-    return d->fd;
+    if (!d->error)
+        *fd = d->fd;
+
+    return d->error;
 }
